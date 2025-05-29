@@ -14,8 +14,9 @@ Open Scope order_scope.
 From Coq Require Import Logic.EqdepFacts.
 Require Import Coq.Arith.Wf_nat.
 
+(* Definition 11 *)
 HB.mixin Record IsLagoisGraph V of Equality V := {
-  lattice : V -> {d & finTBLatticeType d} ;
+  lattice : V -> {d & porderType d} ;
   edge v v' : option (Lagois.type (projT2 (lattice v)) (projT2 (lattice v'))) ;
 
   edge_irefl v : edge v v = None ;
@@ -26,8 +27,11 @@ HB.mixin Record IsLagoisGraph V of Equality V := {
 HB.structure Definition LagoisGraph := {T of IsLagoisGraph T & Equality T}.
 Notation "L( v )" := (projT2 (lattice v)).
 Notation "v @ f > v'" := (edge v v' = Some f) (at level 70, f at level 60).
+Axiom squash_edge : forall (G : LagoisGraph.type) (v v' : G) f (e e' : v @f> v'), e = e'.
 
-Inductive flow (G : LagoisGraph.type) : forall v v' : G, L(v) -> L(v') -> Prop :=
+(* Definition 12 *)
+Inductive flow (G : LagoisGraph.type) :
+    forall v v' : G, L(v) -> L(v') -> Prop :=
   | flow_le v (p p' : L(v)) :
       p <= p' -> flow p p'
   | flow_lc v v' p f :
@@ -51,16 +55,10 @@ Fixpoint path2fun G v v' (f : v ~> v' :> G) : L(v) -> L(v') :=
   end.
 Coercion path2fun : path >-> Funclass.
 
-Fixpoint path2seq_aux G v v' (f : v ~> v' :> G) : seq G :=
+Fixpoint path2seq G v v' (f : v ~> v' :> G) : seq G :=
   match f with
-  | path_empty _ => [::]
-  | path_cons _ v' _ _ _ g => v' :: path2seq_aux g
-  end.
-
-Definition path2seq G v v' (f : v ~> v' :> G) : seq G :=
-  match f with
-  | path_empty _ => [::]
-  | path_cons v v' _ _ _ g => [:: v, v' & path2seq_aux g]
+  | path_empty v => [:: v]
+  | path_cons v _ _ _ _ g => v :: path2seq g
   end.
 Coercion path2seq : path >-> seq.
 
@@ -89,14 +87,19 @@ where "f ^<~" := (path_reverse f).
 Section LagoisGraphTheory.
 Variable (G : LagoisGraph.type).
 
+(* Definition 13.1 *)
 Definition flow_secure (v : G) := forall (p p' : L(v)), flow p p' -> p <= p'.
 
+(* Definition 13.2 *)
 Definition flow_secure_graph := forall v : G, flow_secure v.
 
+(* Definition 14.1 *)
 Definition loop_secure v (f : v ~> v :> G) := forall (p : L(v)), p <= f p.
 
+(* Definition 14.2 *)
 Definition loop_secure_vertex v := forall (f : v ~> v :> G), loop_secure f.
 
+(* Definition 14.3 *)
 Definition loop_secure_graph := forall v : G, loop_secure_vertex v.
 
 Lemma pathcomp2funcomp (v v' v'' : G) (f : v ~> v') (g : v' ~> v'') :
@@ -105,6 +108,7 @@ Proof.
   move=> p; elim: v v' / f g p => [ // | v v' v0 h' h f g g0 h0 //=].
 Qed.
 
+(* Lemma 2 *)
 Lemma path_nondecreasing v v' (f : v ~> v' :> G) :
   nondecreasing f.
 Proof.
@@ -112,6 +116,7 @@ Proof.
   exact/ndg/(omorph_le f'.1).
 Qed.
 
+(* Lemma 1 *)
 Lemma flow2path (v v' : G) (p : L(v)) (q : L(v')) :
   flow p q -> exists (f : v ~> v' :> G), f p <= q.
 Proof.
@@ -135,7 +140,8 @@ Proof.
   by move/(_ (f p)) in IH.
 Qed.
 
-Lemma vertex_flow_secure_iff_loop_secure (v : G) :
+(* Proposition 2.1 *)
+Proposition vertex_flow_secure_iff_loop_secure (v : G) :
   flow_secure v <-> loop_secure_vertex v .
 Proof.
   rewrite/loop_secure_vertex/flow_secure/loop_secure; split.
@@ -146,6 +152,7 @@ Proof.
       exact: Hh.
 Qed.
 
+(* Proposition 2.2 *)
 Lemma flow_secure_graph_is_loop_secure :
   flow_secure_graph <-> loop_secure_graph.
 Proof.
@@ -167,6 +174,7 @@ Lemma reversepathcons2funcomp
   (path_cons f g)^<~ =1 f^<~ \o g^<~.
 Proof. by move=> p; rewrite pathcomp2funcomp. Qed.
 
+(* Lemma 3 *)
 Lemma reverse_path_loop_secure v v' (f : v ~> v') : loop_secure (f \* f^<~).
 Proof.
   elim: f => [ _// | {}v {}v' v'' f' f g IHg p].
@@ -198,14 +206,10 @@ Proof. elim: v1 v2 / f g => // v1 v2 vn h' h f IH g /=; by rewrite IH. Qed.
 
 Definition looplen (f : {v & v ~> v :> G}) := pathlen (projT2 f).
 
-Definition lelooplen (f g : {v : G & v ~> v}) := (looplen f < looplen g).
-
-Lemma fsubg_fleg (f g : {v : G & v ~> v}) :
-  lelooplen f g -> (looplen f < looplen g)%coq_nat.
-Proof. exact: ltP. Qed.
+Definition lelooplen (f g : {v : G & v ~> v}) := looplen f < looplen g.
 
 Lemma subloopwf : well_founded lelooplen.
-Proof. apply: (well_founded_lt_compat _ looplen _ fsubg_fleg). Qed.
+Proof. apply: well_founded_lt_compat=> f g; exact ltP. Qed.
 
 Lemma pathconcatA (v1 v2 v3 v4 : G) (f : v1~>v2) (g : v2~>v3) (h : v3~>v4) :
   (f \* g) \* h = f \* (g \* h).
@@ -226,33 +230,49 @@ Proof.
   by apply/orP; left.
 Qed.
 
+Lemma noloopedge (v v' : G) f' (f : v @f'> v') : v <> v'.
+Proof.
+  move=> v_eq_v'.
+  have vv'irefl: edge v v' = None by rewrite v_eq_v'; exact: edge_irefl.
+  by rewrite vv'irefl in f.
+Qed.
+
+Lemma concatpA (v1 v2 v3 v4 : G) (f : v1 ~> v2) (g : v2 ~> v3) (h : v3 ~> v4) :
+  f \* g \* h = (f \* g) \* h.
+Proof.
+  by elim: v1 v2 / f v3 v4 g h =>
+      [//| v1 v2 v3 f' f g IH v4 v5 h j /=];
+  rewrite IH.
+Qed.
+
 Lemma nuniqdecomp v1 v2 (f : v1 ~> v2 :> G) : ~~ uniq f ->
   exists v (fl : v1 ~> v) (g : v ~> v) (fr : v ~> v2),
     0 < pathlen g /\ f = fl \* g \* fr.
 Proof.
-  rewrite /uniq; elim: v1 v2 / f => //= v1 v2 v3 g' g f IH.
-  rewrite Bool.negb_andb => /orP [{IH}vl_in_f | un_f].
-    have v1_neq_v2 : v1 <> v2.
-      move=> v1_eq_v2.
-      have v1v2irefl: edge v1 v2 = None by rewrite v1_eq_v2; exact: edge_irefl.
-      by rewrite v1v2irefl in g.
-    rewrite Bool.negb_involutive /in_mem /= in vl_in_f.
-    move: vl_in_f => /orP [/eqP //| {v1_neq_v2}v1_in_f].
-    rewrite pathcons2concat.
-    move: (edge2path g) => {g'}g.
-    elim: v2 v3 / f v1 g v1_in_f=> [// | v2 v3 v4 f' f g IH v1 h /= v1_in_fg].
-    move: v1_in_fg => /orP [/eqP v1_eq_v3 | key].
-      elim: v1_eq_v3 h g f' f IH => h g f' f _.
-      exists v1; exists ε; exists (h \* f); exists g; split.
-        by rewrite pathlen_homo addnC.
-      by rewrite pathcons2concat [ε \* _]/= pathconcatA.
-    move: (IH v1 (h \* f) key) => [v [fl [g0 [fr [lt0g0 hfg_eq_flg0fr]]]]].
-    exists v. exists fl; exists g0; exists fr; split => //.
-    by rewrite pathcons2concat -pathconcatA.
-  case: v2 v3 / f g' g IH un_f => //= v2 v3 v4 h' h p g' g IH un_f.
-  move: (IH un_f) => [v [fl [gp [fr [lt0gp hp_eq_flgpfr]]]]].
-  exists v; exists (g \* fl); exists gp; exists fr; split => //=.
-  by rewrite hp_eq_flgpfr.
+  elim:  v1 v2 / f => [// | v1 v2 v3 g' g f IH].
+  rewrite /= Bool.negb_andb => /orP [{IH}v1_in_f | f_un]; first last.
+    move: IH => /(_ f_un) [v [fl [h [fr [h_ne f_decomp]]]]].
+    exists v; exists (g \* fl); exists h; exists fr; split => [//|].
+    by rewrite /= f_decomp.
+  rewrite Bool.negb_involutive in v1_in_f.
+  move gstar_eq_g: (edge2path g) => g_star.
+  have g_star_ne: 0 < pathlen g_star by rewrite -gstar_eq_g.
+  rewrite pathcons2concat gstar_eq_g => {gstar_eq_g g' g}.
+  elim: v2 v3 / f v1 v1_in_f g_star g_star_ne =>
+      [v2 v1 /= v1_in_v2 g_star g_star_ne|].
+    rewrite mem_seq1 in v1_in_v2.
+    move/eqP in v1_in_v2.
+    exists v1; exists ε; elim: v1_in_v2 g_star g_star_ne => g_star g_star_ne.
+    by exists g_star; exists ε.
+  move=> v2 v3 v4 g' g f IH v1 /= v1_in_gf g_star g_star_ne.
+  move: v1_in_gf => /orP [/eqP v1_eq_v2 | key].
+    elim: v1_eq_v2 g' g g_star g_star_ne => g' g g_star g_star_ne.
+    by exists v1; exists ε; exists g_star; exists (g \* f).
+  have gstarg_ne: 0 < pathlen (g_star \* g) by rewrite pathlen_homo /= addnC.
+  move: (IH v1 key (g_star \* g) gstarg_ne) =>
+      [v' [fl [g0 [fr [g0_ne gstarg_decomp]]]]].
+  exists v'; exists fl; exists g0; exists fr; split => //=.
+  by rewrite -gstarg_decomp pathcons2concat concatpA.
 Qed.
 
 Lemma loopdecomp v (f : v ~> v :> G) :
@@ -269,7 +289,7 @@ Proof.
   refine (
     match f as f' in vl ~> vr return
       forall (vr_eq_vl : vr = vl) (vl_eq_v : vl = v),
-      f = eq_rect vl (fun x => x ~> x) (eq_rect vr _ f' vl vr_eq_vl) v vl_eq_v ->
+      f = eq_rect vl (fun x => x ~> x) (eq_rect vr _ f' vl vr_eq_vl) v vl_eq_v->
       f = ε \/
       (exists v' g' (g : v @g'> v') (h : v' ~> v) (_ : uniq h), f = g \* h) \/
       (exists (v' v'' : G) (fl' : Lagois.type L( v) L( v')) (fl : v @ fl' > v')
@@ -334,36 +354,46 @@ Qed.
 Fixpoint loop_ind_aux
     (P : forall v : G, v ~> v -> Prop)
     (bc_1 : forall v : G, P v (ε))
-    (bc_2 : forall (v v' : G) g' (g : v @ g' > v') (h : v' ~> v), uniq h -> P v (g \* h))
-    (ic : forall (v v': G) f1 f2 h, P v' h -> P v (f1 \* f2) -> P v (f1 \* h \* f2))
+    (bc_2 : forall (v v' : G) g' (g : v @ g' > v') (h : v' ~> v),
+        uniq h -> P v (g \* h))
+    (ic : forall (v v': G) f1 f2 h,
+        P v' h -> P v (f1 \* f2) -> P v (f1 \* h \* f2))
     v (f : v ~> v) (ACC : Acc lelooplen (existT _ v f)) {struct ACC} : P v f :=
   match loopdecomp' f with
   | or_introl f_eq_ε => eq_rect ε _ (bc_1 v) f (esym f_eq_ε)
   | or_intror rest =>
       match rest with
       | or_introl f_imm =>
-          let: ex_intro v' (ex_intro g' (ex_intro g (ex_intro h (ex_intro un_h f_imm)))) := f_imm in
+          let: ex_intro v' (ex_intro g' (ex_intro g
+              (ex_intro h (ex_intro un_h f_imm)))) := f_imm in
             eq_rect (g \* h) _ (bc_2 v v' g' g h un_h) f (esym f_imm)
       | or_intror f_dup =>
-          let: ex_intro v' (ex_intro f1 (ex_intro g (ex_intro f2 (conj f_eq (conj glef f1f1lef))))) := f_dup in
+          let: ex_intro v' (ex_intro f1 (ex_intro g (ex_intro f2
+              (conj f_eq (conj glef f1f1lef))))) := f_dup in
           let Pg := loop_ind_aux bc_1 bc_2 ic (Acc_inv ACC glef) in
           let Pf1f2 := loop_ind_aux bc_1 bc_2 ic (Acc_inv ACC f1f1lef) in
             eq_rect (f1 \* g \* f2) _ (ic v v' f1 f2 g Pg Pf1f2) f (esym f_eq)
       end
   end.
 
+(* Theorem 2 *)
 Definition loop_ind
     (P : forall v : G, v ~> v :> G -> Prop)
     (bc_1 : forall v : G, P v (ε))
-    (bc_2 : forall (v v' : G) g' (g : v @ g' > v') (h : v' ~> v), uniq h -> P v (g \* h))
-    (ic : forall (v v': G) f1 f2 h, P v' h -> P v (f1 \* f2)-> P v (f1 \* h \* f2))
+    (bc_2 : forall (v v' : G) g' (g : v @ g' > v') (h : v' ~> v),
+        uniq h -> P v (g \* h))
+    (ic : forall (v v': G) f1 f2 h,
+        P v' h -> P v (f1 \* f2)-> P v (f1 \* h \* f2))
     v (f : v ~> v) : P v f :=
   loop_ind_aux bc_1 bc_2 ic (subloopwf (existT _ v f)).
 
+(* Definition 15 *)
 Definition simply_secure := forall (v v' : G) (f : v ~> v') (g : v' ~> v),
   uniq f -> uniq g -> forall p, p <= (f \* g)(p).
 
-Proposition simply_secure_iff_loop_secure : simply_secure <-> loop_secure_graph.
+(* Proposition 3 *)
+Proposition simply_secure_iff_loop_secure :
+  simply_secure <-> loop_secure_graph.
 Proof.
   split; first last => [ Gls v v' f g _ _ p | Gss v f ].
     exact: Gls.
@@ -379,6 +409,7 @@ Qed.
 
 End LagoisGraphTheory.
 
+(* Definition 16 *)
 HB.mixin Record IsLagoisVForest G of LagoisGraph G := {
   vacyclic v v' (f g : v ~> v' :> G) : uniq f -> uniq g -> f =1 g ;
 }.
@@ -388,6 +419,7 @@ HB.structure Definition LagoisVForest :=
 Section LagoisVForestTheory.
 Variable (G : LagoisVForest.type).
 
+(* Theorem 3 *)
 Theorem VForest_loop_secure : loop_secure_graph G.
 Proof.
   move=> v f.
@@ -414,9 +446,10 @@ HB.structure Definition LagoisForest :=
 Section LagoisForestTheory.
 Variable (G : LagoisForest.type).
 
-(* Observe that this lemma can be proven without vacyclic *)
+(* Corollary 1 *)
 Lemma LagoisForest_vacyclic v v' (f g : v ~> v' :> G) :
   uniq f -> uniq g -> f =1 g.
+(* Observe that this lemma can be proven without vacyclic *)
 Proof. by move=> un_f un_g p; rewrite (acyclic _ _ _ _ un_f un_g). Qed.
 
 Lemma uniqloopε v (f : v ~> v :> G) : uniq f -> f = ε.

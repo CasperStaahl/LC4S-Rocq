@@ -11,8 +11,9 @@ Import Order.LTheory.
 
 Open Scope order_scope.
 
+(* Definition 10 *)
 HB.mixin Record IsLagois d (P : porderType d) d' (Q : porderType d')
-    (fg : { omorphism P -> Q} * { omorphism Q -> P}) := {
+    (fg : {omorphism P -> Q} * {omorphism Q -> P}) := {
   lc1 q : q <= fg.2 (fg.1 q) ;
   lc2 p : p <= fg.1 (fg.2 p) ;
   lc3 p : fg.1 (fg.2 (fg.1 p)) = fg.1 p ;
@@ -20,30 +21,15 @@ HB.mixin Record IsLagois d (P : porderType d) d' (Q : porderType d')
 }.
 HB.structure Definition Lagois d P d' Q := {fg of IsLagois d P d' Q fg}.
 
-Lemma lexididx d (P : porderType d) (p : P) : p <= idfun (idfun p).
-Proof. exact: lexx. Qed.
+HB.instance Definition _
+    d (P : porderType d)
+    d' (Q : porderType d')
+    (fg : Lagois.type P Q)
+  := IsLagois.Build d' Q d P (fg.2, fg.1) lc2 lc1 lc4 lc3.
 
-Lemma eqidididxidx d (P : porderType d) : forall x : P, id (id (id x)) = id x.
-Proof. trivial. Qed.
-
-(* HB.instance Definition test d P := *)
-(*   @IsLagois.Build d P d P idfun idfun (@lexididx d P) (@lexididx d P) (@eqidididxidx d P) (@eqidididxidx d P). *)
-
-Definition incr {A: porderType (Order.Disp tt tt)} (f : A -> A) := forall a, a <= f a.
-
-Definition quasi {A B} (f : A -> B) (g : B -> A) := g \o f \o g =1 g.
-
-Inductive FLagois (P Q : finTBLatticeType (Order.Disp tt tt)) (f : { omorphism P -> Q}) (g : { omorphism Q -> P}) : Prop :=
-  | PFLagois : incr (f \o g) -> incr (g \o f) -> quasi f g -> quasi g f -> FLagois f g.
-
-Notation "P '<~' f '~' g '~>' Q" := (@FLagois P Q f g) (at level 35).
-
-Lemma melton_3_2 P Q f g :
-  P<~f~g~>Q -> Q<~g~f~>P.
-Proof. move=> [LC1 LC2 LC3 LC4]//. Qed.
-
-Lemma melton_3_3 (P Q : finLatticeType (Order.Disp tt tt)) (f : { omorphism P -> Q}) (g : { omorphism Q -> P}) :
-  f \o g \o f =1 f <-> (forall q, q \in f @: setT <-> (f \o g) q = q).
+Lemma melton_3_3 d (P : finLatticeType d) d' (Q : finLatticeType d')
+    (f : { omorphism P -> Q}) (g : { omorphism Q -> P}) :
+  (forall p, f (g (f p)) = f p) <-> (forall q, q \in f @: setT <-> f (g q) = q).
 Proof.
   split=> [LC3 | LC3'].
   - split=> [q_in_fP | fgq_eq_q].
@@ -52,50 +38,41 @@ Proof.
   - move=> p; apply (LC3' (f p)); apply/imsetP; exists p=>//.
 Qed.
 
-Lemma SC1 P Q f g :
-  P<~f~g~>Q -> incr (g \o f).
-Proof. move=> [_ LC2 _ _]//. Qed.
-
-Lemma SC2 P Q f g :
-  P<~f~g~>Q -> incr (f \o g).
-Proof. move=> [LC1 _ _ _]//. Qed.
-
-Lemma PC1 P Q f g p :
-  P<~f~g~>Q ->
-  p \in g @: setT -> f p = \join_(q | g q == p) q.
+Lemma PC
+    d (P : finTBLatticeType d)
+    d' (Q : finTBLatticeType d')
+    (fg : Lagois.type P Q) q :
+  q \in fg.1 @: setT -> fg.2 q = \join_(p | fg.1 p == q) p.
 Proof.
-  move=> [LC1 _ LC3 _] p_in_gQ.
-  have gfp_eq_p : g (f p) = p
-    by rewrite /quasi melton_3_3 in LC3; rewrite LC3 in p_in_gQ.
-  have fp_in_gpip : f p \in g @^-1: [set p]
-    by rewrite in_set gfp_eq_p; exact: set11.
-  have gq_eq_p_if_q_in_gpi_p : forall q, q \in g @^-1: [set p] -> g(q) = p
-    by move=> q; rewrite in_set in_set1; apply/eqP.
-  have q_le_fp_if_q_in_gpip : forall q, q \in g @^-1: [set p] -> q <= f(p)
-    by move=> q /(gq_eq_p_if_q_in_gpi_p q) <-; exact: LC1.
-  have fp_le : f p <= \join_(q | g q == p) q.
+  move=> q_in_fP.
+  have fgq_eq_q : fg.1 (fg.2 q) = q
+    by move/(iffLR (melton_3_3 fg.1 fg.2)) in q_in_fP; exact /q_in_fP /lc3.
+  have gq_in_fqiq : fg.2 q \in fg.1 @^-1: [set q]
+    by rewrite in_set fgq_eq_q; exact: set11.
+  have fp_eq_q_if_p_in_fiq : forall p, p \in fg.1 @^-1: [set q] -> fg.1 p = q
+    by move=> p; rewrite in_set in_set1; apply/eqP.
+  have p_in_fi_q_if_p_le_gq : forall p, p \in fg.1 @^-1: [set q] -> p <= fg.2 q
+    by move=> p /(fp_eq_q_if_p_in_fiq p) <-; exact: lc1.
+  have gq_le : fg.2 q <= \join_(p | fg.1 p == q) p.
     apply: joins_min.
-      by apply/eqP; exact gfp_eq_p.
+      by apply/eqP; exact fgq_eq_q.
     exact: le_refl.
-  have fp_ge : \join_(q | g q == p) q <= f p.
-    apply/joinsP => q /eqP gq_eq_p.
-    apply q_le_fp_if_q_in_gpip.
-    rewrite in_set gq_eq_p.
+  have gq_ge : \join_(p | fg.1 p == q) p <= fg.2 q.
+    apply/joinsP => p /eqP fp_eq_q.
+    apply p_in_fi_q_if_p_le_gq.
+    rewrite in_set fp_eq_q.
     exact: set11.
   by apply: le_anti; apply/andP.
 Qed.
 
-Lemma PC2 P Q f g q :
-  P<~f~g~>Q ->
-  q \in f @: setT -> g q = \join_(p | f p == q) p.
-Proof. move/melton_3_2/PC1. exact. Qed.
-
-Lemma melton_3_7_1 P Q f g q :
-  P<~f~g~>Q ->
-  q \in f @: setT -> g q = \join_(p in f@^-1: [set q]) p.
+Lemma melton_3_7
+    d (P : finTBLatticeType d)
+    d' (Q : finTBLatticeType d')
+    (fg : Lagois.type P Q) q :
+  q \in fg.1 @: setT -> fg.2 q = \join_(p in fg.1@^-1: [set q]) p.
 Proof.
-  move=> LC q_in_fP.
-  rewrite (PC2 LC q_in_fP).
+  move=> q_in_fP.
+  rewrite (PC q_in_fP).
   apply/le_anti/andP; split.
   - apply/joinsP => p /eqP fp_eq_q.
     apply: joins_min => //.
@@ -107,53 +84,48 @@ Proof.
     by rewrite -p_in_fnq.
 Qed.
 
-Lemma melton_3_7_2 P Q f g p :
-  P<~f~g~>Q ->
-  p \in g @: setT -> f p = \join_(q in g@^-1: [set p]) q.
-Proof. move/melton_3_2/melton_3_7_1. exact. Qed.
-
-Lemma melton_3_7_1_full P Q f g q :
-  P<~f~g~>Q ->
-  q \in f @: setT ->
-  g q \in f@^-1: [set q] /\ forall p, p \in f@^-1: [set q] -> p <= g q.
+Lemma melton_3_7_full
+    d (P : finTBLatticeType d)
+    d' (Q : finTBLatticeType d')
+    (fg : Lagois.type P Q) q :
+  q \in fg.1 @: setT ->
+  fg.2 q \in fg.1@^-1: [set q]
+  /\ forall p, p \in fg.1@^-1: [set q] -> p <= fg.2 q.
 Proof.
-  move=> LC q_in_fP; split; first last.
-    rewrite (melton_3_7_1 LC q_in_fP) => p' p'_in_fq .
+  move=> q_in_fP; split; first last.
+    rewrite (melton_3_7 q_in_fP) => p' p'_in_fq .
     exact: (joins_min p'_in_fq).
-  move: LC => [_ _ _ LC4]; rewrite/quasi/eqfun/= in LC4.
   move: q_in_fP => /imsetP [p _ q_eq_fp].
-  rewrite in_set q_eq_fp LC4; exact: set11.
+  rewrite in_set q_eq_fp lc3; exact: set11.
 Qed.
 
-Lemma melton_3_7_2_full P Q f g p :
-  P<~f~g~>Q ->
-  p \in g @: setT ->
-  f p \in g@^-1: [set p] /\ forall q, q \in g@^-1: [set p] -> q <= f p.
-Proof. move/melton_3_2/melton_3_7_1_full. exact. Qed.
+Lemma CC
+    d (P : porderType d)
+    d' (Q : porderType d')
+    (fg : Lagois.type P Q) q q' :
+  fg.1 (fg.2 q) = q' -> fg.1 (fg.2 q') = q'.
+Proof. by move=> <-; rewrite lc3. Qed.
 
-Lemma CC1 P Q f g p p' :
-  P<~f~g~>Q ->
-  g (f p) = p' -> g (f p') = p'.
-Proof. by move=> [_ _ _ LC4] <-; rewrite/quasi/eqfun/= in LC4; rewrite LC4. Qed.
-
-Lemma CC2 P Q f g q q' :
-  P<~f~g~>Q ->
-  f (g q) = q' -> f (g q') = q'.
-Proof. move/melton_3_2/CC1. exact. Qed.
-
-Lemma melton_3_8_1 P Q f g q :
-  P<~f~g~>Q ->
-  f (g q) = \meet_(q' in f @: setT | q <= q') q'.
+Lemma melton_3_8
+    d (P : finTBLatticeType d)
+    d' (Q : finTBLatticeType d')
+    (fg : Lagois.type P Q) q :
+  fg.1 (fg.2 q) = \meet_(q' in fg.1 @: setT | q <= q') q'.
 Proof.
-  move=> [LC1 _ _ LC4]; rewrite/quasi/eqfun/= in LC4.
-  have fgq_in_qleq': f (g q) \in [set q' in f @: setT | q <= q']
-    by rewrite in_set; apply/andP; split => //; apply/imsetP; exists (g q).
-  have fgq_le_q'_if : forall q', q' \in f @: setT -> q <= q' -> f (g q) <= q'.
+  have fgq_in_qleq': fg.1 (fg.2 q) \in [set q' in fg.1 @: setT | q <= q'].
+    rewrite in_set; apply/andP; split; first last.
+      exact: lc2.
+    by apply/imsetP; exists (fg.2 q).
+  have fgq_le_q'_if :
+      forall q', q' \in fg.1 @: setT -> q <= q' -> fg.1 (fg.2 q) <= q'.
     move=> q' /imsetP [p] _ -> q_le_q'.
-    by move/(omorph_le g)/(omorph_le f) in q_le_q'; rewrite LC4 in q_le_q'.
-  have fgq_le : f (g q) <= \meet_(q' in [set f x | x in [set: P]] | q <= q') q'
+    move /(omorph_le fg.2) /(omorph_le fg.1) in q_le_q'.
+    by rewrite lc3 in q_le_q'.
+  have fgq_le :
+      fg.1 (fg.2 q) <= \meet_(q' in [set fg.1 x | x in [set: P]] | q <= q') q'
     by apply/meetsP => q' /andP [/fgq_le_q'_if q'_in_fiP /q'_in_fiP q_le_q'].
-  have fgq_ge : \meet_(q' in [set f x | x in [set: P]] | q <= q') q' <= f (g q).
+  have fgq_ge :
+      \meet_(q' in [set fg.1 x | x in [set: P]] | q <= q') q' <= fg.1 (fg.2 q).
     apply/meets_max => //.
     rewrite setIdE in_setI in fgq_in_qleq'.
     move/andP: fgq_in_qleq' => [fgq_in_fP fgq_over_q].
@@ -162,97 +134,110 @@ Proof.
   exact/le_anti/andP.
 Qed.
 
-Lemma melton_3_8_2 P Q f g p :
-  P<~f~g~>Q ->
-  g (f p) = \meet_(p' in g @: setT | p <= p') p'.
-Proof. move/melton_3_2/melton_3_8_1. exact. Qed.
-
-Lemma melton_3_9_1 P Q f g q :
-  P<~f~g~>Q ->
-  g q = \join_(q'' in f@^-1: [set \meet_(q' in f @: setT | q <= q') q']) q''.
+Lemma melton_3_9
+    d (P : finTBLatticeType d)
+    d' (Q : finTBLatticeType d')
+    (fg : Lagois.type P Q) q :
+  fg.2 q =
+    \join_(q'' in fg.1@^-1: [set \meet_(q' in fg.1 @: setT | q <= q') q']) q''.
 Proof.
-  move=> L; case L => [_ _ /ltac:(rewrite/quasi/eqfun/=) LC3 _].
-  have: g q = \join_(p in f@^-1: [set f (g q)]) p
-    by rewrite -[in LHS]LC3 (melton_3_7_1 L) => //; apply/imsetP; exists (g q).
-  by rewrite melton_3_8_1.
+  have: fg.2 q = \join_(p in fg.1@^-1: [set fg.1 (fg.2 q)]) p
+    by rewrite -[in LHS]lc4 melton_3_7 => //; apply/imsetP; exists (fg.2 q).
+  by rewrite melton_3_8.
 Qed.
 
-Lemma melton_3_9_2 P Q f g p :
-  P<~f~g~>Q ->
-  f p = \join_(p'' in g@^-1: [set \meet_(p' in g @: setT | p <= p') p']) p''.
-Proof. move/melton_3_2/melton_3_9_1. exact. Qed.
-
-Definition meetOfInIs {L : finTBLatticeType (Order.Disp tt tt)} (A B : {set L}) (x : L) : Prop :=
+Definition meetOfInIs d (L : finTBLatticeType d) (A B : {set L}) x :=
   (forall a, a \in A -> x <= a)
   /\ (forall b, b \in B -> (forall a, a \in A -> b <= a) -> b <= x)
   /\ x \in B.
 Notation "'meet' 'of' A 'in' B 'is' x" := (meetOfInIs A B x) (at level 30).
 
-Definition joinOfInIs {L : finTBLatticeType (Order.Disp tt tt)} (A B : {set L}) (x : L) : Prop :=
+Definition joinOfInIs d (L : finTBLatticeType d) (A B : {set L}) x :=
   (forall a, a \in A -> a <= x)
   /\ (forall b, b \in B -> (forall a, a \in A -> a <= b) -> x <= b)
   /\ x \in B.
 Notation "'join' 'of' A 'in' B 'is' x" := (joinOfInIs A B x) (at level 30).
 
-Check forall (P Q : finTBLatticeType (Order.Disp tt tt)) f g (A : {set P}),
-  P<~f~g~>Q ->
-  A \subset g @: setT ->
-  (forall p : {b | meet of A in (g @: setT) is b}, exists b, meet of A in setT is b /\ b = proj1_sig p)
-  /\ (forall p : {b | meet of A in setT is b}, exists b, meet of A in (g @: setT) is b /\ b = proj1_sig p).
+Check forall d (P : finTBLatticeType d)
+             d' (Q : finTBLatticeType d')
+             (fg : Lagois.type P Q)
+             (A : {set P}),
+  A \subset fg.2 @: setT ->
+  (forall p : {b | meet of A in (fg.2 @: setT) is b},
+      exists b, meet of A in setT is b /\ b = proj1_sig p)
+  /\ (forall p : {b | meet of A in setT is b},
+      exists b, meet of A in (fg.2 @: setT) is b /\ b = proj1_sig p).
 
-Lemma melton_3_11_1 {P Q : finTBLatticeType (Order.Disp tt tt)} f g (A : {set P}) :
-  P<~f~g~>Q ->
-  A \subset g @: setT ->
-  (forall b, meet of A in (g @: setT) is b <-> meet of A in setT is b).
+Lemma melton_3_11
+    d (P : finTBLatticeType d)
+    d' (Q : finTBLatticeType d')
+    (fg : Lagois.type P Q)
+    (A : {set P}) :
+  A \subset fg.2 @: setT ->
+  (forall b, meet of A in (fg.2 @: setT) is b <-> meet of A in setT is b).
 Proof.
-  move=> [_ LC2 LC3 LC4] A_subset_gQ b.
-  rewrite/quasi/eqfun/= in LC3; rewrite/quasi/eqfun/= in LC4.
-  have gfa_eq_a a (a_in_A : a \in A) : g (f a) = a
-    by move: A_subset_gQ => /subsetP /(_ a a_in_A) /imsetP [q _ ->]; exact: LC3.
+  move=>  A_subset_gQ b.
+  have gfa_eq_a a (a_in_A : a \in A) : fg.2 (fg.1 a) = a
+    by move: A_subset_gQ => /subsetP /(_ a a_in_A) /imsetP [q _ ->]; exact: lc4.
   split; first last.
   - move=> [b_le_a [p_le_b _]].
     split => //; split.
       by move=> x' _ x'_le_a; apply: p_le_b => //.
-    have gfb_le_gfa a (a_in_A : a \in A) : g (f b) <= g (f a).
-      apply/(omorph_le g)/(omorph_le f); exact: b_le_a.
-    have gfb_le_a a (a_in_A : a \in A) : g (f b) <= a
+    have gfb_le_gfa a (a_in_A : a \in A) : fg.2 (fg.1 b) <= fg.2 (fg.1 a).
+      apply/(omorph_le fg.2)/(omorph_le fg.1); exact: b_le_a.
+    have gfb_le_a a (a_in_A : a \in A) : fg.2 (fg.1 b) <= a
       by rewrite -(gfa_eq_a a a_in_A); exact: gfb_le_gfa.
-    have b_eq_gfb : b = g (f b)
-      by apply/le_anti/andP; split => //; apply: p_le_b => //.
-    apply/imsetP; exists (f b) => //.
+    have b_eq_gfb : b = fg.2 (fg.1 b).
+      apply/le_anti/andP; split.
+        exact: lc1.
+      apply: p_le_b => //.
+    apply/imsetP; exists (fg.1 b) => //.
   - move=> [b_le_a [b_greatest b_in_gQ]].
-    split => //; split => // d _ d_lb_A.
-    have gfd_le_gfa a (a_in_A : a \in A) : d <= g (f d) <= g (f a)
-      by apply/andP; split => //; apply/(omorph_le g)/(omorph_le f); exact: d_lb_A.
-    have gfd_in_gQ : g (f d) \in g @: setT by apply/imsetP; exists (f d) => //.
-    have gfd_le_b : g (f d) <= b.
+    split => [//|]; split => [dd _ d_lb_A |//=].
+    have gfd_le_gfa a (a_in_A : a \in A) :
+        dd <= fg.2 (fg.1 dd) <= fg.2 (fg.1 a).
+      apply/andP; split.
+        exact: lc1.
+      exact /(omorph_le fg.2) /(omorph_le fg.1) /d_lb_A.
+    have gfd_in_gQ : fg.2 (fg.1 dd) \in fg.2 @: setT by
+      apply/imsetP; exists (fg.1 dd) => //.
+    have gfd_le_b : fg.2 (fg.1 dd) <= b.
       apply: (b_greatest _ gfd_in_gQ) => a a_in_A.
       rewrite -(gfa_eq_a a a_in_A).
       by move: gfd_le_gfa => /(_ a a_in_A) /andP [_ gfd_eq_gfa].
-    exact: le_trans (LC2 d) gfd_le_b.
+    exact: le_trans (lc1 dd) gfd_le_b.
 Qed.
 
-Lemma melton_3_11_1' {P Q : finTBLatticeType (Order.Disp tt tt)} f g (A : {set P}) :
-  P<~f~g~>Q ->
-  A \subset g @: setT ->
-  (forall p : {b | meet of A in (g @: setT) is b}, exists b, meet of A in setT is b /\ b = proj1_sig p)
-  /\ (forall p : {b | meet of A in setT is b}, exists b, meet of A in (g @: setT) is b /\ b = proj1_sig p).
+Lemma melton_3_11_1'
+    d (P : finTBLatticeType d)
+    d' (Q : finTBLatticeType d')
+    (fg : Lagois.type P Q)
+    (A : {set P}) :
+  A \subset fg.2 @: setT ->
+  (forall p : {b | meet of A in (fg.2 @: setT) is b},
+      exists b, meet of A in setT is b /\ b = proj1_sig p)
+  /\ (forall p : {b | meet of A in setT is b},
+      exists b, meet of A in (fg.2 @: setT) is b /\ b = proj1_sig p).
 Proof.
-  move=> LC A_subset_gQ; split=> p; exists (proj1_sig p); split=> //;
-  apply/(melton_3_11_1 LC A_subset_gQ); exact (proj2_sig p).
+  move=> A_subset_gQ; split=> p; exists (proj1_sig p); split=> //;
+  apply/(melton_3_11 A_subset_gQ); exact (proj2_sig p).
 Qed.
 
-Lemma melton_3_11_2 {P Q : finTBLatticeType (Order.Disp tt tt)} f g (A : {set P}) :
-  P<~f~g~>Q ->
-  A \subset g @: setT ->
-  (forall a', join of A in setT is a' -> join of A in (g @: setT) is (g (f a'))).
+Lemma melton_3_11_2
+    d (P : finTBLatticeType d)
+    d' (Q : finTBLatticeType d')
+    (fg : Lagois.type P Q)
+    (A : {set P}) :
+  A \subset fg.2 @: setT ->
+  (forall a', join of A in setT is a' ->
+      join of A in (fg.2 @: setT) is (fg.2 (fg.1 a'))).
 Proof.
-  move=> [_ LC2 /ltac:(rewrite/quasi/eqfun/=) LC3 _] A_subset_gQ a' [a'_ub_A [a'_least _]].
+  move=> A_subset_gQ a' [a'_ub_A [a'_least _]].
   split => [a a_in_A |].
-    exact: le_trans (a'_ub_A a a_in_A) (LC2 a').
+    exact: le_trans (a'_ub_A a a_in_A) (lc1 a').
   split; first last => [| p p_in_gQ p_ub_A].
-    by apply/imsetP; exists (f a') => //; rewrite in_set.
-  have p_eq_gfp : g (f p) = p
-    by move: p_in_gQ => /imsetP [q _ ->]; exact: LC3.
-  rewrite -p_eq_gfp; apply/(omorph_le g)/(omorph_le f); exact: a'_least.
+    by apply/imsetP; exists (fg.1 a') => //; rewrite in_set.
+  have p_eq_gfp : fg.2 (fg.1 p) = p
+    by move: p_in_gQ => /imsetP [q _ ->]; exact: lc4.
+  rewrite -p_eq_gfp; apply /(omorph_le fg.2) /(omorph_le fg.1); exact: a'_least.
 Qed.
