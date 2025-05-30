@@ -105,8 +105,8 @@ Inductive GSemSS G : GState G -> Ev G -> GState G -> Prop :=
       St v = st ->
       SemSS st (ass_sig x) st' ->
       GSemSS St (ass_ev v x) [eta St with v |-> st']
-  | ex_exch St v_i v_j f st_i st'_i st_j st'_j c x n:
-      v_i @f> v_j ->
+  | ex_exch St v_i v_j st_i st'_i st_j st'_j c x n:
+      v_i @> v_j ->
       St v_i = st_i ->
       St v_j = st_j ->
       SemSS st_i (out_sig c n) st'_i ->
