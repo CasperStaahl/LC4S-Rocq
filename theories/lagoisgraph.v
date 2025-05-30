@@ -88,6 +88,13 @@ where "f ^<~" := (path_reverse f).
 Section LagoisGraphTheory.
 Variable (G : LagoisGraph.type).
 
+Lemma edge_uip (v v' : G) (f g : v @>v') : f = g.
+Proof.
+  case: (edge v v') f g => [f g | //].
+  by rewrite (Eqdep_dec.UIP_refl_bool true f)
+             (Eqdep_dec.UIP_refl_bool true g).
+Qed.
+
 (* Definition 13.1 *)
 Definition flow_secure (v : G) := forall (p p' : L(v)), flow p p' -> p <= p'.
 
