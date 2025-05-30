@@ -17,34 +17,19 @@ Require Import Coq.Arith.Wf_nat.
 (* Definition 11 *)
 HB.mixin Record IsLagoisGraph V of Equality V := {
   lattice : V -> {d & porderType d} ;
-  edge v v' : option (Lagois.type (projT2 (lattice v)) (projT2 (lattice v'))) ;
+  edge v v' : bool ;
+  label v v' : edge v v' -> Lagois.type (projT2 (lattice v)) (projT2 (lattice v')) ;
 
-  edge_irefl v : edge v v = None ;
-
-  edge_sym v v' fg :
-    edge v v' = Some fg -> {gf | edge v' v = Some gf /\ fg.1 = gf.2} ;
+  edge_irefl v : edge v v = false ;
+  edge_sym v v' : edge v v' -> edge v' v ;
+  label_sym v v' p p' : (label v v' p).1 = (label v' v p').2;
 }.
 HB.structure Definition LagoisGraph := {T of IsLagoisGraph T & Equality T}.
 Notation "L( v )" := (projT2 (lattice v)).
+Notation "v @> v'" := (edge v v' = true) (at level 70).
 
-Definition edgeType (G : LagoisGraph.type) (v v' : G) :=
-  match edge v v' with
-  | None => false
-  | Some _ => true
-  end.
-Notation "v @> v'" := (edgeType v v' = true) (at level 70).
-
-Definition edge2prod (G : LagoisGraph.type) (v v' : G) (e : v @> v') : {fg | edge v v' = Some fg}.
-Proof.
-  elim E: (edge v v') => [fg|].
-    by exists fg.
-  by rewrite /edgeType E in e.
-Defined.
-Coercion edge2prod : eq >-> sig.
-
-Definition prod2edge (G : LagoisGraph.type) (v v' : G) (fg : Lagois.type L(v) L(v')) :
-  edge v v' = Some fg -> v @> v'.
-Proof. by rewrite /edgeType; move=> ->. Qed.
+Definition edge2label (G : LagoisGraph.type) (v v' : G) (f : v @> v') := label v v' f.
+Coercion edge2label : eq >-> Lagois.type.
 
 (* Definition 12 *)
 Inductive flow (G : LagoisGraph.type) :
@@ -52,7 +37,7 @@ Inductive flow (G : LagoisGraph.type) :
   | flow_le v (p p' : L(v)) :
       p <= p' -> flow p p'
   | flow_lc v v' p (f : v @> v') :
-      flow p ((projT1 f).1 p)
+      flow p (f.1 p)
   | flow_trans v v' v'' (p : L(v)) (q : L(v')) (r : L(v'')) :
       flow p q -> flow q r -> flow p r.
 
@@ -68,7 +53,7 @@ Notation "'ε'" := (path_empty _).
 Fixpoint path2fun G v v' (f : v ~> v' :> G) : L(v) -> L(v') :=
   match f with
   | path_empty _ => idfun
-  | path_cons _ _ _ f g => path2fun g \o (projT1 f).1
+  | path_cons _ _ _ f g => path2fun g \o f.1
   end.
 Coercion path2fun : path >-> Funclass.
 
@@ -96,8 +81,7 @@ Fixpoint path_reverse G v v'(f : v ~> v' :> G ) : v' ~> v :=
   match f with
   | path_empty _ => path_empty _
   | path_cons v v'' v' f' g =>
-      g^<~ \* (path_cons
-          (prod2edge (proj1 (projT2 (edge_sym v v'' (projT1 f') (projT2 f'))))) (path_empty v))
+      g^<~ \* (path_cons (edge_sym _ _ f') (path_empty v))
   end
 where "f ^<~" := (path_reverse f).
 
@@ -130,7 +114,7 @@ Lemma path_nondecreasing v v' (f : v ~> v' :> G) :
   nondecreasing f.
 Proof.
   elim: f => [ _// | {}x {}y z e g ndg p p' plep' /=].
-  exact/ndg/(omorph_le (projT1 e).1).
+  exact/ndg/(omorph_le e.1).
 Qed.
 
 (* Lemma 1 *)
@@ -203,16 +187,13 @@ Proof.
   rewrite pathcons2funcomp /comp.
   rewrite reversepathcons2funcomp /comp.
   have p_le_prffp : p <= path_reverse f (f p).
-    admit.
-    (* move: f fp_le_ggfp. *)
-    (* rewrite/=. *)
-    (* rewrite /edgeType. *)
-    (* move: (edge_sym v v' f' f) => [fn [_ r]]/=. *)
-    (* rewrite r. *)
-    (* exact: lc2. *)
+    rewrite /=.
+    move: (label_sym v v' f (edge_sym v v' f)) => idk.
+    rewrite idk.
+    exact: lc2.
   move/(path_nondecreasing (path_reverse f)) in fp_le_ggfp.
   exact: (le_trans p_le_prffp fp_le_ggfp).
-Admitted.
+Qed.
 
 Fixpoint pathlen (v v' : G) (f : v ~> v') : nat :=
   match f with
@@ -243,8 +224,8 @@ Proof.
   rewrite /=; apply/andP; split=> //.
   have v_neq_v': v <> v'.
     move=> v_eq_v'.
-    have vv'irefl: edge v v' = None by rewrite v_eq_v'; exact: edge_irefl.
-    by rewrite /edgeType vv'irefl in f.
+    have vv'irefl: edge v v' = None by rewrite v_eq_v'; rewrite edge_irefl.
+    by rewrite (vv'irefl nat) in f.
   move/eqP in v_neq_v'.
   rewrite Bool.negb_andb.
   by apply/orP; left.
@@ -253,8 +234,8 @@ Qed.
 Lemma noloopedge (v v' : G) (f : v @> v') : v <> v'.
 Proof.
   move=> v_eq_v'.
-  have vv'irefl: edge v v' = None by rewrite v_eq_v'; exact: edge_irefl.
-  by rewrite /edgeType vv'irefl in f.
+    have vv'irefl: edge v v' = None by rewrite v_eq_v'; rewrite edge_irefl.
+    by rewrite (vv'irefl nat) in f.
 Qed.
 
 Lemma concatpA (v1 v2 v3 v4 : G) (f : v1 ~> v2) (g : v2 ~> v3) (h : v3 ~> v4) :
@@ -444,16 +425,17 @@ Theorem VForest_loop_secure : loop_secure_graph G.
 Proof.
   move=> v f.
   elim/loop_ind: v / f => [ _// | v v'  g h un_h p | v v' f1 f2 h sh sf1f2 p].
-    (* move: (edge_sym v v' g) => [f' [f f_eq]]. *)
-    (* have un_erev : uniq f by exact: edgeuniq. *)
-    (* have p_eq_erev : h =1 f by exact: vacyclic. *)
-    (* rewrite pathcomp2funcomp /= p_eq_erev f_eq. *)
-    (* exact: lc2. *)
-  (* move/(_ p) in sf1f2; rewrite pathcomp2funcomp /= in sf1f2. *)
-  (* move/(_ (f1 p))/(path_nondecreasing f2) in sh. *)
-  (* do 2! rewrite pathcomp2funcomp /=. *)
-  (* exact: le_trans sf1f2 sh. *)
-Admitted.
+    move: (edge_sym v v' g) => g'.
+    have un_erev : uniq g' by exact: edgeuniq.
+    have p_eq_erev : h =1 g' by exact: vacyclic.
+    rewrite pathcomp2funcomp /= p_eq_erev.
+    move: (label_sym v v' g g') => ->.
+    exact: lc2.
+  move/(_ p) in sf1f2; rewrite pathcomp2funcomp /= in sf1f2.
+  move/(_ (f1 p))/(path_nondecreasing f2) in sh.
+  do 2! rewrite pathcomp2funcomp /=.
+  exact: le_trans sf1f2 sh.
+Qed.
 
 End LagoisVForestTheory.
 
