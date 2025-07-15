@@ -23,7 +23,7 @@ HB.mixin Record IsLagoisGraph V of Equality V := {
 
   edge_irefl v : edge v v = false ;
   edge_sym v v' : edge v v' -> edge v' v ;
-  label_sym v v' p p' : (label v v' p).1 = (label v' v p').2;
+  label_sym v v' p p' : (label v v' p).1 =1 (label v' v p').2;
 }.
 HB.structure Definition LagoisGraph := {T of IsLagoisGraph T & Equality T}.
 Notation "L( v )" := (projT2 (lattice v)).
@@ -534,17 +534,35 @@ match v1, v2 return Bridge_edge v1 v2 -> Lagois.type (projT2 (Bridge_lattice v1)
                                  end
 end e.
 
-
-Lemma Bridge_label_sym  (v1 v2 : Bridge fg) (e1 : Bridge_edge v1 v2) (e2 : Bridge_edge v2 v1) :
-  (Bridge_label e1).1 = (Bridge_label e2).2.
-Proof.
-  elim: v1 e1 e2 => /= v1 e1 e2.
-    elim: v2 e1 e2 => /= v2 e1 e2.
-      exact: label_sym.
-    admit.
-  elim: v2 e1 e2 => /= v2 e1 e2.
-    admit.
-  exact: label_sym.
-Admitted.
-
 End Bridge.
+
+Lemma Bridge_label_sym  (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut))(v1 v2 : Bridge fg) (e1 : Bridge_edge v1 v2) (e2 : Bridge_edge v2 v1) :
+  (Bridge_label e1).1 =1 (Bridge_label e2).2.
+Proof.
+  elim: v1 e1 e2 => v1 e1 e2.
+    elim: v2 e1 e2 => v2 e1 e2 p.
+      exact: label_sym.
+    have v1_eq_vabut : v_abut = v1 by move: e1 => /andP [/eqP e1 _].
+    have v2_eq_v'abut : v'_abut = v2 by move: e1 => /andP [_ /eqP e1].
+    elim: v1 / v1_eq_vabut fg e1 e2 p.
+    elim: v2 / v2_eq_v'abut => fg e1 e2 p.
+    rewrite /=.
+    have idk : Bridge_label' e1 = erefl by exact: eq_axiomK.
+    have idk' : Bridge_label'' e1 = erefl by exact: eq_axiomK.
+    have idk'' : Bridge_label' (Bridge_edge_sym e2) = erefl by exact: eq_axiomK.
+    have idk''' : Bridge_label'' (Bridge_edge_sym e2) = erefl by exact: eq_axiomK.
+    by rewrite idk idk' idk'' idk'''.
+  elim: v2 e1 e2 => v2 e1 e2 p.
+    have v2_eq_vabut : v_abut = v2 by move: e1 => /andP [_ /eqP e1].
+    have v1_eq_v'abut : v'_abut = v1 by move: e1 => /andP [/eqP e1 _].
+    elim: v1 / v1_eq_v'abut fg e1 e2 p.
+    elim: v2 / v2_eq_vabut => fg e1 e2 p.
+    rewrite /=.
+    have idk  : Bridge_label' (Bridge_edge_sym e1) = erefl by exact: eq_axiomK.
+    have idk' : Bridge_label'' (Bridge_edge_sym e1) = erefl by exact: eq_axiomK.
+    have idk'' : Bridge_label' e2 = erefl by exact: eq_axiomK.
+    have idk''' : Bridge_label'' e2 = erefl by exact: eq_axiomK.
+    by rewrite idk idk' idk'' idk'''.
+  exact: label_sym.
+Qed.
+
