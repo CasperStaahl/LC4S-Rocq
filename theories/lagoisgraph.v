@@ -1,5 +1,6 @@
 From HB Require Import structures.
 
+
 (* SSReflect *)
 From mathcomp Require Import ssreflect ssrfun ssrbool.
 Set Implicit Arguments.
@@ -468,3 +469,88 @@ Theorem Forest_loop_secure : loop_secure_graph G.
 Proof. exact: VForest_loop_secure. Qed.
 
 End LagoisForestTheory.
+
+Section Bridge.
+
+Inductive Bridge (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) : Type :=
+  | lbank : G -> Bridge fg
+  | rbank : G' -> Bridge fg.
+
+Definition Bridge_lattice (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) (v'' : Bridge fg) :=
+  match v'' with
+  | lbank v => lattice v
+  | rbank v' => lattice v'
+  end.
+
+Definition Bridge_edge (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) (v1 v2 : Bridge fg) :=
+  match v1, v2 with
+  | lbank v1, lbank v2
+  | rbank v1, rbank v2 => edge v1 v2
+  | lbank v1, rbank v2 => (v1 == v_abut) && (v2 == v'_abut)
+  | rbank v1, lbank v2 => (v1 == v'_abut) && (v2 == v_abut)
+  end.
+
+Definition Bridge_label' (G G' : LagoisGraph.type) (v_abut v1 : G) (v'_abut v2: G') (fg : Lagois.type L(v_abut) L(v'_abut)) :
+  Bridge_edge (lbank fg v1) (rbank fg v2) -> v_abut = v1.
+Proof. by move=> /andP [/eqP e _]. Defined.
+
+Definition Bridge_label'' (G G' : LagoisGraph.type) (v_abut v1 : G) (v'_abut v2: G') (fg : Lagois.type L(v_abut) L(v'_abut)) :
+  Bridge_edge (lbank fg v1) (rbank fg v2) -> v'_abut = v2.
+Proof. by move=> /andP [_ /eqP e]. Defined.
+
+Definition Bridge_label''' (G G' : LagoisGraph.type) (v_abut v2 : G) (v'_abut v1: G') (fg : Lagois.type L(v_abut) L(v'_abut)) :
+  Bridge_edge (rbank fg v1) (lbank fg v2) -> v'_abut = v1.
+Proof. by move=> /andP [/eqP e _]. Defined.
+
+Definition Bridge_label'''' (G G' : LagoisGraph.type) (v_abut v2 : G) (v'_abut v1: G') (fg : Lagois.type L(v_abut) L(v'_abut)) :
+  Bridge_edge (rbank fg v1) (lbank fg v2) -> v_abut = v2.
+Proof. by move=> /andP [_ /eqP e]. Defined.
+
+(*Yeah this his horrible...*)
+Definition Bridge_label (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) (v1 v2 : Bridge fg) (e : Bridge_edge v1 v2) : Lagois.type (projT2 (Bridge_lattice v1)) (projT2 (Bridge_lattice v2)) :=
+match v1, v2 return Bridge_edge v1 v2 -> Lagois.type (projT2 (Bridge_lattice v1)) (projT2 (Bridge_lattice v2)) with
+| lbank v1, lbank v2 => fun e => e
+| rbank v1, rbank v2 => fun e => e
+| lbank v1, rbank v2 => fun e => match @Bridge_label' _ _ _ _ _ _ fg e with
+                                 | erefl => match @Bridge_label'' _ _ _ _ _ _ fg e with
+                                            | erefl => fg
+                                            end
+                                 end
+| rbank v1, lbank v2 => fun e => match @Bridge_label''' _ _ _ _ _ _ fg e with
+                                 | erefl => match Bridge_label'''' e with
+                                            | erefl => (fg.2, fg.1)
+                                            end
+                                 end
+end e.
+
+Lemma Bridge_edge_irefl (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) (v : Bridge fg) : Bridge_edge v v = false.
+Proof. elim: v => v; exact: edge_irefl. Qed.
+
+Lemma Bridge_edge_sym (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) (v1 v2 : Bridge fg) : Bridge_edge v1 v2 -> Bridge_edge v2 v1.
+Proof.
+  elim: v1 => v1.
+    elim: v2 => v2 => /=.
+      exact: edge_sym.
+    by rewrite Bool.andb_comm.
+  elim: v2 => v2 => /=.
+    by rewrite Bool.andb_comm.
+  exact: edge_sym.
+Qed.
+
+Lemma Bridge_label_sym (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) (v1 v2 : Bridge fg) (e1 : Bridge_edge v1 v2) (e2 : Bridge_edge v2 v1) : (Bridge_label e1).1 = (Bridge_label e2).2.
+Proof.
+  elim: v1 e1 e2 => /= v1 e1 e2.
+    elim: v2 e1 e2 => /= v2 e1 e2.
+      exact: label_sym.
+    admit.
+  elim: v2 e1 e2 => /= v2 e1 e2.
+    admit.
+  exact: label_sym.
+Admitted.
+
+
+
+
+
+
+End Bridge.
