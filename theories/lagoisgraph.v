@@ -478,6 +478,37 @@ Section Bridge.
 
 Context (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)).
 
+Definition Bridge_eq (v1 v2 : Bridge fg) :=
+  match v1, v2 with
+  | lbank v1, lbank v2
+  | rbank v1, rbank v2 => v1 == v2
+  | _v1, _v2 => false
+  end.
+
+Lemma Bridge_eq_axiom : eq_axiom Bridge_eq.
+Proof.
+  move=> v1 v2.
+  case: v1 => v1.
+  - case: v2 => v2; first last.
+      exact: ReflectF.
+    rewrite /=.
+    case v1_eq_v2: (v1 == v2); move /eqP in v1_eq_v2.
+      apply: ReflectT.
+      by rewrite v1_eq_v2.
+    apply: ReflectF.
+    injection.
+    exact: v1_eq_v2.
+  - case: v2 => v2.
+      exact: ReflectF.
+    rewrite /=.
+    case v1_eq_v2: (v1 == v2); move /eqP in v1_eq_v2.
+      apply: ReflectT.
+      by rewrite v1_eq_v2.
+    apply: ReflectF.
+    injection.
+    exact: v1_eq_v2.
+Qed.
+
 Definition Bridge_lattice (v : Bridge fg) :=
   match v with
   | lbank v => lattice v
@@ -536,7 +567,7 @@ end e.
 
 End Bridge.
 
-Lemma Bridge_label_sym  (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut))(v1 v2 : Bridge fg) (e1 : Bridge_edge v1 v2) (e2 : Bridge_edge v2 v1) :
+Lemma Bridge_label_sym (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) (v1 v2 : Bridge fg) (e1 : Bridge_edge v1 v2) (e2 : Bridge_edge v2 v1) :
   (Bridge_label e1).1 =1 (Bridge_label e2).2.
 Proof.
   elim: v1 e1 e2 => v1 e1 e2.
@@ -565,4 +596,10 @@ Proof.
     by rewrite idk idk' idk'' idk'''.
   exact: label_sym.
 Qed.
+
+HB.instance Definition _ (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) :=
+  hasDecEq.Build (Bridge fg) (@Bridge_eq_axiom _ _ _ _ fg).
+
+HB.instance Definition _ (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) :=
+  IsLagoisGraph.Build (Bridge fg) (@Bridge_edge_irefl _ _ _ _ fg) (@Bridge_edge_sym _ _ _ _ fg) (@Bridge_label_sym _ _ _ _ fg).
 
