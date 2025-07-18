@@ -606,66 +606,66 @@ HB.instance Definition _ := hasDecEq.Build (Bridge fg) Bridge_eq_axiom.
 
 HB.instance Definition _ := IsLagoisGraph.Build (Bridge fg) Bridge_edge_irefl Bridge_edge_sym Bridge_label_sym.
 
-Definition in_l (v : Bridge fg) := {v0 | lbank fg v0 = v}.
+Definition inl (v : Bridge fg) := {v0 | lbank fg v0 = v}.
 
-Definition F (v : Bridge fg) (v_in_l : in_l v) : G :=
+Definition extl (v : Bridge fg) (v_in_l : inl v) : G :=
   let: exist v0 v_eq := v_in_l in
     match v_eq with
     | erefl => v0
     end.
 
-Definition F_eq (v : Bridge fg) (v_in_l : in_l v) :
-  lbank fg (F v_in_l) = v.
+Definition extl_id (v : Bridge fg) (v_inl : inl v) :
+  lbank fg (extl v_inl) = v.
 Proof.
-  elim: v_in_l => v' v2v'.
+  elim: v_inl => v' v2v'.
   by refine (match v2v' with erefl => _ end) => /=.
 Defined.
 
-Definition H' (v1 v2 : G)  (f : v1 @> v2) :
+Definition el2e (v1 v2 : G)  (f : v1 @> v2) :
   lbank fg v1 @> lbank fg v2 := f.
 
-Fixpoint H (v1 v2 : G) (f : v1 ~> v2) : lbank fg v1 ~> lbank fg v2 :=
+Fixpoint pl2p (v1 v2 : G) (f : v1 ~> v2) : lbank fg v1 ~> lbank fg v2 :=
   match f with
   | ε => ε
-  | path_cons _ _ _ g h => H' g \* H h
+  | path_cons _ _ _ g h => el2e g \* pl2p h
   end.
 
-Lemma H_eq (v1 v2 : G) (f : v1 ~> v2) : H f =1 f.
+Lemma pl2p_id (v1 v2 : G) (f : v1 ~> v2) : pl2p f =1 f.
 Proof.
   elim: v1 v2 / f => [//| v1 v2 v3 f1 f2 IH p].
   by rewrite /= IH.
 Qed.
 
-Theorem Bridge_secure'0
+Theorem unf_inl_inl_aux
   (v1 v2 : Bridge fg)
   (f : v1 ~> v2)
-  (v1_in_l : in_l v1)
-  (v2_in_l : in_l v2)
-  : uniq f -> exists (g : F v1_in_l ~> F v2_in_l),
-    f =1 (eq_rect _ (fun v => v1 ~> v) (eq_rect _ (fun v => v ~> lbank fg (F v2_in_l)) (H g) v1 (F_eq v1_in_l)) v2 (F_eq v2_in_l)).
+  (v1_inl : inl v1)
+  (v2_inl : inl v2)
+  : uniq f -> exists (g : extl v1_inl ~> extl v2_inl),
+    f =1 (eq_rect _ (fun v => v1 ~> v) (eq_rect _ (fun v => v ~> lbank fg (extl v2_inl)) (pl2p g) v1 (extl_id v1_inl)) v2 (extl_id v2_inl)).
 Proof.
 Admitted.
 
-Theorem Bridge_secure' (v1 v2 : G) (f : lbank fg v1 ~> lbank fg v2)
+Theorem un_inl_inl (v1 v2 : G) (f : lbank fg v1 ~> lbank fg v2)
   : uniq f -> exists (g : v1 ~> v2), f =1 g.
 Proof.
-  move=> un_f; move: (Bridge_secure'0 (exist _ v1 erefl) (exist _ v2 erefl) un_f) => /= [g g_eq].
+  move=> un_f; move: (unf_inl_inl_aux (exist _ v1 erefl) (exist _ v2 erefl) un_f) => /= [g g_eq].
   exists g => p.
   move/(_ p) : g_eq => ->.
-  exact: H_eq.
+  exact: pl2p_id.
 Qed.
 
-Theorem Bridge_secure'' (v1 v2 : G') (f : rbank fg v1 ~> rbank fg v2)
+Theorem un_inr_inr (v1 v2 : G') (f : rbank fg v1 ~> rbank fg v2)
   : uniq f -> exists (g : v1 ~> v2), f =1 g.
 Proof.
 Admitted.
 
-Theorem Bridge_secure''' (v1 : G) (v2 : G') (f : lbank fg v1 ~> rbank fg v2) :
+Theorem l2r_bpath_decomp (v1 : G) (v2 : G') (f : lbank fg v1 ~> rbank fg v2) :
   uniq f -> exists (g : v1 ~> v_abut) (h : v'_abut ~> v2), f =1 h \o Bridge_edge_abuts \o g.
 Proof.
 Admitted.
 
-Theorem Bridge_secure'''' (v2 : G) (v1 : G') (f : rbank fg v1 ~>lbank fg v2) :
+Theorem r2l_bpath_decomp (v1 : G') (v2 : G) (f : rbank fg v1 ~>lbank fg v2) :
   uniq f -> exists (g : v1 ~> v'_abut) (h : v_abut ~> v2), f =1 h \o (Bridge_edge_sym Bridge_edge_abuts) \o g.
 Proof.
 Admitted.
@@ -674,16 +674,16 @@ Theorem Bridge_secure : loop_secure_graph G -> loop_secure_graph G' -> loop_secu
 Proof.
   move=> Gs G's; apply /simply_secure_iff_loop_secure.
   elim=> v1; elim=> v2 f g un_f un_g p; last 1 first; rewrite pathcomp2funcomp /comp.
-  - move: (Bridge_secure'' un_f) (Bridge_secure'' un_g) => [h /ltac:(rewrite /eqfun) ->] [k /ltac:(rewrite /eqfun) ->].
+  - move: (un_inr_inr un_f) (un_inr_inr un_g) => [h /ltac:(rewrite /eqfun) ->] [k /ltac:(rewrite /eqfun) ->].
     apply: le_trans.
       exact: (G's v1 (h \* k)).
     by rewrite pathcomp2funcomp /comp.
-  - move: (Bridge_secure' un_f) (Bridge_secure' un_g) => [h /ltac:(rewrite /eqfun) ->] [k /ltac:(rewrite /eqfun) ->].
+  - move: (un_inl_inl un_f) (un_inl_inl un_g) => [h /ltac:(rewrite /eqfun) ->] [k /ltac:(rewrite /eqfun) ->].
     apply: le_trans.
       exact: (Gs v1 (h \* k)).
     by rewrite pathcomp2funcomp /comp.
-  - move: (Bridge_secure''' un_f) => [f_1 [f_2 ->]].
-    move: (Bridge_secure'''' un_g) => [g_1 [g_2 ->]].
+  - move: (l2r_bpath_decomp un_f) => [f_1 [f_2 ->]].
+    move: (r2l_bpath_decomp un_g) => [g_1 [g_2 ->]].
     have idk : Bridge_edge_abuts (f_1 p) <= g_1 (f_2 (Bridge_edge_abuts (f_1 p))).
       move: (G's v'_abut (f_2 \* g_1)) => idk'.
       rewrite /loop_secure in idk'.
@@ -704,8 +704,8 @@ Proof.
       exact: le_trans idk'1 idk'2.
     move/andP: idk'' => [idk'1 idk'2].
     exact: le_trans idk'1 idk'2.
-  - move: (Bridge_secure'''' un_f) => [f_1 [f_2 ->]].
-    move: (Bridge_secure''' un_g) => [g_1 [g_2 ->]].
+  - move: (r2l_bpath_decomp un_f) => [f_1 [f_2 ->]].
+    move: (l2r_bpath_decomp un_g) => [g_1 [g_2 ->]].
     have idk : (Bridge_edge_abuts)^<~ (f_1 p) <= g_1 (f_2 ((Bridge_edge_abuts)^<~ (f_1 p))).
       move: (Gs v_abut (f_2 \* g_1)) => idk'.
       rewrite /loop_secure in idk'.
