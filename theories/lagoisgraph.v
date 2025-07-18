@@ -96,9 +96,33 @@ Proof.
              (Eqdep_dec.UIP_refl_bool true g).
 Qed.
 
-Lemma path_reverse_involution (v v' : G) (f : v ~> v') : f^<~^<~ = f.
+
+Lemma path_reverse_rid (v1 v2 : G) (f : v1 ~> v2) : f = f \* ε.
 Proof.
-Admitted.
+  elim: v1 v2 / f => [//| v1 v2 v3 f g IH].
+  by rewrite [in LHS]IH.
+Qed.
+
+Lemma path_reverse_assoc (v1 v2 v3 v4 : G) (f : v1 ~> v2) (g : v2 ~> v3) (h : v3 ~> v4) :
+  f \* g \* h = (f \* g) \* h.
+Proof.
+  elim: v1 v2 / f g => [//| v1 v2 v3' f g IH h' /=].
+  by rewrite IH.
+Qed.
+
+Lemma path_reverse_distrb (v1 v2 v4 : G) (f : v1 ~> v2) (h : v2 ~> v4) :
+  (f \* h)^<~ = (h^<~ \* f^<~).
+Proof.
+  elim: v1 v2 / f h => [v1 f| v1 v2 v3 f g IH h /=].
+    exact: path_reverse_rid.
+  by rewrite IH path_reverse_assoc.
+Qed.
+
+Lemma path_reverse_involution (v1 v2 : G) (f : v1 ~> v2) : f^<~^<~ = f.
+Proof.
+  elim: v1 v2 / f => [//| v1 v2 v3 f g IH].
+  by rewrite path_reverse_distrb IH /= (edge_uip (edge_sym v2 v1 (edge_sym v1 v2 f))).
+Qed.
 
 (* Definition 13.1 *)
 Definition flow_secure (v : G) := forall (p p' : L(v)), flow p p' -> p <= p'.
