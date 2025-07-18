@@ -529,6 +529,7 @@ Definition Bridge_edge (v1 v2 : Bridge fg) :=
 
 Lemma Bridge_edge_abuts : Bridge_edge (lbank fg v_abut) (rbank fg v'_abut).
 Proof. by rewrite /= eq_refl eq_refl. Qed.
+Notation "o-o" := (Bridge_edge_abuts).
 
 Lemma Bridge_edge_irefl (v : Bridge fg) :
   Bridge_edge v v = false.
@@ -546,11 +547,11 @@ Proof.
   exact: edge_sym.
 Qed.
 
-Definition Bridge_label' (v1 : G) (v2: G') :
+Definition labut_id (v1 : G) (v2: G') :
   Bridge_edge (lbank fg v1) (rbank fg v2) -> v_abut = v1.
 Proof. by move=> /andP [/eqP e _]. Defined.
 
-Definition Bridge_label'' (v1 : G) (v2: G') :
+Definition rabut_id (v1 : G) (v2: G') :
   Bridge_edge (lbank fg v1) (rbank fg v2) -> v'_abut = v2.
 Proof. by move=> /andP [_ /eqP e]. Defined.
 
@@ -560,13 +561,13 @@ Definition Bridge_label (v1 v2 : Bridge fg) (e : Bridge_edge v1 v2) :
 match v1, v2 return Bridge_edge v1 v2 -> Lagois.type (projT2 (Bridge_lattice v1)) (projT2 (Bridge_lattice v2)) with
 | lbank v1, lbank v2 => fun e => e
 | rbank v1, rbank v2 => fun e => e
-| lbank v1, rbank v2 => fun e => match Bridge_label' e with
-                                 | erefl => match Bridge_label'' e with
+| lbank v1, rbank v2 => fun e => match labut_id e with
+                                 | erefl => match rabut_id e with
                                             | erefl => fg
                                             end
                                  end
-| rbank v1, lbank v2 => fun e => match Bridge_label' (Bridge_edge_sym e) with
-                                 | erefl => match Bridge_label'' (Bridge_edge_sym e) with
+| rbank v1, lbank v2 => fun e => match labut_id (Bridge_edge_sym e) with
+                                 | erefl => match rabut_id (Bridge_edge_sym e) with
                                             | erefl => (fg.2, fg.1)
                                             end
                                  end
@@ -583,10 +584,10 @@ Proof.
     elim: v1 / v1_eq_vabut e1 e2 p.
     elim: v2 / v2_eq_v'abut => e1 e2 p.
     rewrite /=.
-    have idk : Bridge_label' e1 = erefl by exact: eq_axiomK.
-    have idk' : Bridge_label'' e1 = erefl by exact: eq_axiomK.
-    have idk'' : Bridge_label' (Bridge_edge_sym e2) = erefl by exact: eq_axiomK.
-    have idk''' : Bridge_label'' (Bridge_edge_sym e2) = erefl by exact: eq_axiomK.
+    have idk : labut_id e1 = erefl by exact: eq_axiomK.
+    have idk' : rabut_id e1 = erefl by exact: eq_axiomK.
+    have idk'' : labut_id (Bridge_edge_sym e2) = erefl by exact: eq_axiomK.
+    have idk''' : rabut_id (Bridge_edge_sym e2) = erefl by exact: eq_axiomK.
     by rewrite idk idk' idk'' idk'''.
   elim: v2 e1 e2 => v2 e1 e2 p.
     have v2_eq_vabut : v_abut = v2 by move: e1 => /andP [_ /eqP e1].
@@ -594,10 +595,10 @@ Proof.
     elim: v1 / v1_eq_v'abut e1 e2 p.
     elim: v2 / v2_eq_vabut => e1 e2 p.
     rewrite /=.
-    have idk  : Bridge_label' (Bridge_edge_sym e1) = erefl by exact: eq_axiomK.
-    have idk' : Bridge_label'' (Bridge_edge_sym e1) = erefl by exact: eq_axiomK.
-    have idk'' : Bridge_label' e2 = erefl by exact: eq_axiomK.
-    have idk''' : Bridge_label'' e2 = erefl by exact: eq_axiomK.
+    have idk  : labut_id (Bridge_edge_sym e1) = erefl by exact: eq_axiomK.
+    have idk' : rabut_id (Bridge_edge_sym e1) = erefl by exact: eq_axiomK.
+    have idk'' : labut_id e2 = erefl by exact: eq_axiomK.
+    have idk''' : rabut_id e2 = erefl by exact: eq_axiomK.
     by rewrite idk idk' idk'' idk'''.
   exact: label_sym.
 Qed.
