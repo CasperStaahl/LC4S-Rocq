@@ -78,7 +78,7 @@ Fixpoint path_concat G v v' v'' (f : v ~> v' :> G) (g : v' ~> v'') : v ~> v'' :=
 where "f \* g" := (path_concat f g).
 
 Reserved Notation "f ^<~".
-Fixpoint path_reverse G v v'(f : v ~> v' :> G ) : v' ~> v :=
+Fixpoint path_reverse G v v' (f : v ~> v' :> G ) : v' ~> v :=
   match f with
   | path_empty _ => path_empty _
   | path_cons v v'' v' f' g =>
@@ -99,7 +99,6 @@ Qed.
 Lemma path_reverse_involution (v v' : G) (f : v ~> v') : f^<~^<~ = f.
 Proof.
 Admitted.
-
 
 (* Definition 13.1 *)
 Definition flow_secure (v : G) := forall (p p' : L(v)), flow p p' -> p <= p'.
@@ -573,9 +572,7 @@ match v1, v2 return Bridge_edge v1 v2 -> Lagois.type (projT2 (Bridge_lattice v1)
                                  end
 end e.
 
-End Bridge.
-
-Lemma Bridge_label_sym (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) (v1 v2 : Bridge fg) (e1 : Bridge_edge v1 v2) (e2 : Bridge_edge v2 v1) :
+Lemma Bridge_label_sym (v1 v2 : Bridge fg) (e1 : Bridge_edge v1 v2) (e2 : Bridge_edge v2 v1) :
   (Bridge_label e1).1 =1 (Bridge_label e2).2.
 Proof.
   elim: v1 e1 e2 => v1 e1 e2.
@@ -583,8 +580,8 @@ Proof.
       exact: label_sym.
     have v1_eq_vabut : v_abut = v1 by move: e1 => /andP [/eqP e1 _].
     have v2_eq_v'abut : v'_abut = v2 by move: e1 => /andP [_ /eqP e1].
-    elim: v1 / v1_eq_vabut fg e1 e2 p.
-    elim: v2 / v2_eq_v'abut => fg e1 e2 p.
+    elim: v1 / v1_eq_vabut e1 e2 p.
+    elim: v2 / v2_eq_v'abut => e1 e2 p.
     rewrite /=.
     have idk : Bridge_label' e1 = erefl by exact: eq_axiomK.
     have idk' : Bridge_label'' e1 = erefl by exact: eq_axiomK.
@@ -594,8 +591,8 @@ Proof.
   elim: v2 e1 e2 => v2 e1 e2 p.
     have v2_eq_vabut : v_abut = v2 by move: e1 => /andP [_ /eqP e1].
     have v1_eq_v'abut : v'_abut = v1 by move: e1 => /andP [/eqP e1 _].
-    elim: v1 / v1_eq_v'abut fg e1 e2 p.
-    elim: v2 / v2_eq_vabut => fg e1 e2 p.
+    elim: v1 / v1_eq_v'abut e1 e2 p.
+    elim: v2 / v2_eq_vabut => e1 e2 p.
     rewrite /=.
     have idk  : Bridge_label' (Bridge_edge_sym e1) = erefl by exact: eq_axiomK.
     have idk' : Bridge_label'' (Bridge_edge_sym e1) = erefl by exact: eq_axiomK.
@@ -605,34 +602,75 @@ Proof.
   exact: label_sym.
 Qed.
 
-HB.instance Definition _ (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) :=
-  hasDecEq.Build (Bridge fg) (@Bridge_eq_axiom _ _ _ _ fg).
+HB.instance Definition _ := hasDecEq.Build (Bridge fg) Bridge_eq_axiom.
 
-HB.instance Definition _ (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) :=
-  IsLagoisGraph.Build (Bridge fg) (@Bridge_edge_irefl _ _ _ _ fg) (@Bridge_edge_sym _ _ _ _ fg) (@Bridge_label_sym _ _ _ _ fg).
+HB.instance Definition _ := IsLagoisGraph.Build (Bridge fg) Bridge_edge_irefl Bridge_edge_sym Bridge_label_sym.
 
-Theorem Bridge_secure' (G G' : LagoisGraph.type) (v_abut v1 v2 : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) (f : lbank fg v1 ~> lbank fg v2)
+Definition in_l (v : Bridge fg) := {v0 | lbank fg v0 = v}.
+
+Definition F (v : Bridge fg) (v_in_l : in_l v) : G :=
+  let: exist v0 v_eq := v_in_l in
+    match v_eq with
+    | erefl => v0
+    end.
+
+Definition F_eq (v : Bridge fg) (v_in_l : in_l v) :
+  lbank fg (F v_in_l) = v.
+Proof.
+  elim: v_in_l => v' v2v'.
+  by refine (match v2v' with erefl => _ end) => /=.
+Defined.
+
+Definition H' (v1 v2 : G)  (f : v1 @> v2) :
+  lbank fg v1 @> lbank fg v2 := f.
+
+Fixpoint H (v1 v2 : G) (f : v1 ~> v2) : lbank fg v1 ~> lbank fg v2 :=
+  match f with
+  | ε => ε
+  | path_cons _ _ _ g h => H' g \* H h
+  end.
+
+Lemma H_eq (v1 v2 : G) (f : v1 ~> v2) : H f =1 f.
+Proof.
+  elim: v1 v2 / f => [//| v1 v2 v3 f1 f2 IH p].
+  by rewrite /= IH.
+Qed.
+
+Theorem Bridge_secure'0
+  (v1 v2 : Bridge fg)
+  (f : v1 ~> v2)
+  (v1_in_l : in_l v1)
+  (v2_in_l : in_l v2)
+  : uniq f -> exists (g : F v1_in_l ~> F v2_in_l),
+    f =1 (eq_rect _ (fun v => v1 ~> v) (eq_rect _ (fun v => v ~> lbank fg (F v2_in_l)) (H g) v1 (F_eq v1_in_l)) v2 (F_eq v2_in_l)).
+Proof.
+Admitted.
+
+Theorem Bridge_secure' (v1 v2 : G) (f : lbank fg v1 ~> lbank fg v2)
+  : uniq f -> exists (g : v1 ~> v2), f =1 g.
+Proof.
+  move=> un_f; move: (Bridge_secure'0 (exist _ v1 erefl) (exist _ v2 erefl) un_f) => /= [g g_eq].
+  exists g => p.
+  move/(_ p) : g_eq => ->.
+  exact: H_eq.
+Qed.
+
+Theorem Bridge_secure'' (v1 v2 : G') (f : rbank fg v1 ~> rbank fg v2)
   : uniq f -> exists (g : v1 ~> v2), f =1 g.
 Proof.
 Admitted.
 
-Theorem Bridge_secure'' (G G' : LagoisGraph.type) (v_abut : G) (v'_abut v1 v2 : G') (fg : Lagois.type L(v_abut) L(v'_abut)) (f : rbank fg v1 ~> rbank fg v2)
-  : uniq f -> exists (g : v1 ~> v2), f =1 g.
+Theorem Bridge_secure''' (v1 : G) (v2 : G') (f : lbank fg v1 ~> rbank fg v2) :
+  uniq f -> exists (g : v1 ~> v_abut) (h : v'_abut ~> v2), f =1 h \o Bridge_edge_abuts \o g.
 Proof.
 Admitted.
 
-Theorem Bridge_secure''' (G G' : LagoisGraph.type) (v_abut v1 : G) (v'_abut v2 : G') (fg : Lagois.type L(v_abut) L(v'_abut)) (f : lbank fg v1 ~> rbank fg v2) :
-  uniq f -> exists (g : v1 ~> v_abut) (h : v'_abut ~> v2), f =1 h \o (@Bridge_edge_abuts _ _ _ _ fg) \o g.
+Theorem Bridge_secure'''' (v2 : G) (v1 : G') (f : rbank fg v1 ~>lbank fg v2) :
+  uniq f -> exists (g : v1 ~> v'_abut) (h : v_abut ~> v2), f =1 h \o (Bridge_edge_sym Bridge_edge_abuts) \o g.
 Proof.
 Admitted.
 
-Theorem Bridge_secure'''' (G G' : LagoisGraph.type) (v_abut v2 : G) (v'_abut v1 : G') (fg : Lagois.type L(v_abut) L(v'_abut)) (f : rbank fg v1 ~>lbank fg v2) :
-  uniq f -> exists (g : v1 ~> v'_abut) (h : v_abut ~> v2), f =1 h \o (Bridge_edge_sym (@Bridge_edge_abuts _ _ _ _ fg)) \o g.
-Proof.
-Admitted.
-
-Theorem Bridge_secure (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) :
-  loop_secure_graph G -> loop_secure_graph G' -> loop_secure_graph (Bridge fg).
+Theorem Bridge_secure : loop_secure_graph G -> loop_secure_graph G' -> loop_secure_graph (Bridge fg).
 Proof.
   move=> Gs G's; apply /simply_secure_iff_loop_secure.
   elim=> v1; elim=> v2 f g un_f un_g p; last 1 first; rewrite pathcomp2funcomp /comp.
@@ -646,19 +684,19 @@ Proof.
     by rewrite pathcomp2funcomp /comp.
   - move: (Bridge_secure''' un_f) => [f_1 [f_2 ->]].
     move: (Bridge_secure'''' un_g) => [g_1 [g_2 ->]].
-    have idk : Bridge_edge_abuts fg (f_1 p) <= g_1 (f_2 (Bridge_edge_abuts fg (f_1 p))).
+    have idk : Bridge_edge_abuts (f_1 p) <= g_1 (f_2 (Bridge_edge_abuts (f_1 p))).
       move: (G's v'_abut (f_2 \* g_1)) => idk'.
       rewrite /loop_secure in idk'.
       move: (pathcomp2funcomp f_2 g_1) => /ltac:(rewrite /eqfun) idk''.
-      move/(_ (Bridge_edge_abuts fg (f_1 p))) in idk'.
+      move/(_ (Bridge_edge_abuts (f_1 p))) in idk'.
       by rewrite idk'' in idk'.
-    have idk' : f_1 p <= (Bridge_edge_sym (Bridge_edge_abuts fg)) (Bridge_edge_abuts fg (f_1 p))
-                      <= (Bridge_edge_sym (Bridge_edge_abuts fg)) (g_1 (f_2 (Bridge_edge_abuts fg (f_1 p)))).
+    have idk' : f_1 p <= (Bridge_edge_sym (Bridge_edge_abuts)) (Bridge_edge_abuts (f_1 p))
+                      <= (Bridge_edge_sym (Bridge_edge_abuts)) (g_1 (f_2 (Bridge_edge_abuts (f_1 p)))).
       apply /andP; split.
-        exact: (reverse_path_loop_secure (Bridge_edge_abuts fg)).
+        exact: (reverse_path_loop_secure (Bridge_edge_abuts)).
       exact: (path_nondecreasing _).
     have idk'' : p <= g_2 (f_1 p)
-                   <= g_2 (((Bridge_edge_sym (Bridge_edge_abuts fg)) (g_1 (f_2 (Bridge_edge_abuts fg (f_1 p)))))).
+                   <= g_2 (((Bridge_edge_sym (Bridge_edge_abuts)) (g_1 (f_2 (Bridge_edge_abuts (f_1 p)))))).
       apply /andP; split.
         by move : (Gs _ (f_1 \* g_2)) => /(_ p) /ltac:(rewrite /loop_secure pathcomp2funcomp /=) ikd.
       apply: (path_nondecreasing _).
@@ -668,22 +706,22 @@ Proof.
     exact: le_trans idk'1 idk'2.
   - move: (Bridge_secure'''' un_f) => [f_1 [f_2 ->]].
     move: (Bridge_secure''' un_g) => [g_1 [g_2 ->]].
-    have idk : (Bridge_edge_abuts fg)^<~ (f_1 p) <= g_1 (f_2 ((Bridge_edge_abuts fg)^<~ (f_1 p))).
+    have idk : (Bridge_edge_abuts)^<~ (f_1 p) <= g_1 (f_2 ((Bridge_edge_abuts)^<~ (f_1 p))).
       move: (Gs v_abut (f_2 \* g_1)) => idk'.
       rewrite /loop_secure in idk'.
       move: (pathcomp2funcomp f_2 g_1) => /ltac:(rewrite /eqfun) idk''.
-      move/(_ ((Bridge_edge_abuts fg)^<~ (f_1 p))) in idk'.
+      move/(_ ((Bridge_edge_abuts)^<~ (f_1 p))) in idk'.
       by rewrite idk'' in idk'.
-    have idk' : f_1 p <= (Bridge_edge_abuts fg) ((Bridge_edge_abuts fg)^<~ (f_1 p))
-                      <= (Bridge_edge_abuts fg) (g_1 (f_2 ((Bridge_edge_abuts fg)^<~ (f_1 p)))).
+    have idk' : f_1 p <= (Bridge_edge_abuts) ((Bridge_edge_abuts)^<~ (f_1 p))
+                      <= (Bridge_edge_abuts) (g_1 (f_2 ((Bridge_edge_abuts)^<~ (f_1 p)))).
       apply /andP; split.
-        move: (reverse_path_loop_secure (Bridge_edge_abuts fg)^<~) => kk.
+        move: (reverse_path_loop_secure (Bridge_edge_abuts)^<~) => kk.
         rewrite /loop_secure in kk.
         move/(_ (f_1 p)) in kk.
         by rewrite path_reverse_involution pathcomp2funcomp /comp in kk.
       exact: (path_nondecreasing _).
     have idk'' : p <= g_2 (f_1 p)
-                   <= g_2 (((Bridge_edge_abuts fg) (g_1 (f_2 ((Bridge_edge_abuts fg)^<~ (f_1 p)))))).
+                   <= g_2 (((Bridge_edge_abuts) (g_1 (f_2 ((Bridge_edge_abuts)^<~ (f_1 p)))))).
       apply /andP; split.
         by move : (G's _ (f_1 \* g_2)) => /(_ p) /ltac:(rewrite /loop_secure pathcomp2funcomp /=) ikd.
       apply: (path_nondecreasing _).
@@ -693,5 +731,4 @@ Proof.
     exact: le_trans idk'1 idk'2.
 Qed.
 
-
-
+End Bridge.
