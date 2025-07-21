@@ -97,7 +97,7 @@ Proof.
 Qed.
 
 
-Lemma path_reverse_rid (v1 v2 : G) (f : v1 ~> v2) : f = f \* ε.
+Lemma path_idr (v1 v2 : G) (f : v1 ~> v2) : f = f \* ε.
 Proof.
   elim: v1 v2 / f => [//| v1 v2 v3 f g IH].
   by rewrite [in LHS]IH.
@@ -114,7 +114,7 @@ Lemma path_reverse_distrb (v1 v2 v4 : G) (f : v1 ~> v2) (h : v2 ~> v4) :
   (f \* h)^<~ = (h^<~ \* f^<~).
 Proof.
   elim: v1 v2 / f h => [v1 f| v1 v2 v3 f g IH h /=].
-    exact: path_reverse_rid.
+    exact: path_idr.
   by rewrite IH path_reverse_assoc.
 Qed.
 
@@ -240,6 +240,37 @@ Fixpoint pathlen (v v' : G) (f : v ~> v') : nat :=
 Lemma pathlen_homo (v1 v2 v3 : G) (f : v1 ~> v2) (g : v2 ~> v3) :
   pathlen (f \* g) = pathlen f + pathlen g.
 Proof. elim: v1 v2 / f g => // v1 v2 vn h f IH g /=; by rewrite IH. Qed.
+
+Lemma in_path_homo (v v1 v2 v3: G) (f : v1 ~> v2) (g : v2 ~> v3) :
+  v \in path2seq (f \* g) = (v \in path2seq f) || (v \in path2seq g).
+Proof.
+  elim: v1 v2 / f v3 g => [v1 v2 g | v1 v2 v3 f1 f2 IH v4 g] /=.
+    case v_eq_v1: (v \in [:: v1]) => [/=|//].
+    case: v1 v2 / g v_eq_v1 => [//|v1 v2 v3 g1 g2 IH /=].
+    rewrite in_cons; apply/orP; left.
+    by rewrite mem_seq1 in IH.
+  move/(_ _ g) in IH.
+  case: v3 v4 / g f2 IH => [v3 f2|v3 v4 v5 g1 g2 f2 /= IH1]; first last.
+    by rewrite in_cons IH1 [in RHS]in_cons Bool.orb_assoc.
+  rewrite -path_idr /= => IH1.
+  case v_in_v3 : (v \in [:: v3]); first last.
+    by rewrite Bool.orb_false_r.
+  rewrite Bool.orb_true_r in_cons.
+  apply /orP; right.
+  rewrite IH1.
+  by apply /orP; right.
+Qed.
+
+Lemma uniq_fc4p (v1 v2 v3 : G) (f : v1 ~> v2) (g : v2 ~> v3) : uniq (f \* g) -> uniq f && uniq g.
+Proof.
+  elim: v1 v2 / f g => [//|v1 v12 v2 f1 f2 /= IH g un_f1f2g].
+  move/andP : un_f1f2g => [v1_nin_f2g un_f2g].
+  move/(_ g un_f2g) /andP : IH => [un_f2 un_g].
+  apply /andP; split=> //.
+  apply /andP; split=> //.
+  rewrite in_path_homo negb_or in v1_nin_f2g.
+  by move/andP : v1_nin_f2g => [v1_nin_f2 _].
+Qed.
 
 Definition looplen (f : {v & v ~> v :> G}) := pathlen (projT2 f).
 
@@ -648,8 +679,12 @@ Proof.
   by refine (match v2v' with erefl => _ end) => /=.
 Defined.
 
+
 Definition el2e (v1 v2 : G)  (f : v1 @> v2) :
   lbank v1 @> lbank v2 := f.
+
+Definition e2el (v1 v2 : G)  (f : lbank v1 @> lbank v2) :
+  v1 @> v2 := f.
 
 Fixpoint pl2p (v1 v2 : G) (f : v1 ~> v2) : lbank v1 ~> lbank v2 :=
   match f with
@@ -662,6 +697,53 @@ Proof.
   elim: v1 v2 / f => [//| v1 v2 v3 f1 f2 IH p].
   by rewrite /= IH.
 Qed.
+
+Lemma bwbridge_nun' (v1 v3 : G) (v2 : G') (f : lbank v1 @> rbank v2) (g : rbank v2 ~> lbank v3) :
+  exists (g1 : rbank v2 ~> rbank v2) (g2 : rbank v2 @> lbank v1) (g3 : lbank v1 ~> lbank v3), g1 \* g2 \* g3 = g.
+Proof.
+Admitted.
+
+Lemma bwbridge_nun (v1 v3 : G) (v2 : G') (f : lbank v1 @> rbank v2) (g : rbank v2 ~> lbank v3) :
+  ~~ uniq (path_cons f g).
+Proof.
+  rewrite /= negb_and Bool.negb_involutive.
+  apply/orP; left.
+  move: (bwbridge_nun' f g) => [g1 [g2 [g3 {g}<-]]].
+  rewrite /= in_path_homo.
+  apply /orP; right.
+  rewrite pathcons2concat in_path_homo.
+  apply /orP; left.
+  rewrite /in_mem /=.
+  by apply /orP; left.
+Qed.
+
+Fixpoint unf_inl_inl_aux
+  (v1 v2 : G)
+  (f : lbank v1 ~> lbank v2)
+  : uniq f -> exists (g : v1 ~> v2),
+    f = pl2p g.
+Proof.
+  refine (match f with
+          | path_empty v1' => _
+          | path_cons v1' v2' v3' g h => _
+          end).
+    by elim: v1' => [v1' _ | _ //]; exists ε.
+  elim: v1' g => [v1' g | _ _ //].
+  elim: v3' h => [v3' h | _ _ //].
+  elim: v2' g h => v2' g h un_gh.
+    rewrite pathcons2concat in un_gh.
+    move/uniq_fc4p: un_gh => /andP[un_g un_h].
+    move: (unf_inl_inl_aux v2' v3' h un_h) => [h' ->].
+    move: (e2el g) => g'.
+    exists (g' \* h') => /=.
+    by rewrite (edge_uip g (el2e g')).
+  move: (bwbridge_nun g h) => cont.
+  by rewrite un_gh in cont.
+Qed.
+
+
+
+
 
 Theorem unf_inl_inl_aux
   (v1 v2 : Bridge fg)
