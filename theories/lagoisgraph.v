@@ -706,7 +706,7 @@ Proof.
   by rewrite /= IH.
 Qed.
 
-Fixpoint bwbridge_nun' (v2 : G) (v1 : G') (f : rbank v1 ~> lbank v2) {struct f}:
+Fixpoint bwbridge_nun' (v2 : G) (v1 : G') (f : rbank v1 ~> lbank v2) :
   exists (f1 : rbank v1 ~> rbank v'_abut) (f2 : lbank v_abut ~> lbank v2), f1 \* o-o^<~ \* f2 = f.
 Proof.
   refine (match f with
@@ -731,7 +731,7 @@ Proof.
     by rewrite /= (edge_uip f1 (edge_sym (lbank v_abut) (rbank v'_abut) o-o)).
 Qed.
 
-Fixpoint bwbridge_nun'_inv (v1 : G) (v2 : G') (f : lbank v1 ~> rbank v2) {struct f}:
+Fixpoint bwbridge_nun'_inv (v1 : G) (v2 : G') (f : lbank v1 ~> rbank v2) :
   exists (f1 : lbank v1 ~> lbank v_abut) (f2 : rbank v'_abut ~> rbank v2), f1 \* o-o \* f2 = f.
 Proof. Admitted.
 
