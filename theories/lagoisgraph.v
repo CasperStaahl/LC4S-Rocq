@@ -731,6 +731,9 @@ Proof.
     by rewrite /= (edge_uip f1 (edge_sym (lbank v_abut) (rbank v'_abut) o-o)).
 Qed.
 
+Fixpoint bwbridge_nun'_inv (v1 : G) (v2 : G') (f : lbank v1 ~> rbank v2) {struct f}:
+  exists (f1 : lbank v1 ~> lbank v_abut) (f2 : rbank v'_abut ~> rbank v2), f1 \* o-o \* f2 = f.
+Proof. Admitted.
 
 Lemma bwbridge_nun (v1 v3 : G) (v2 : G') (f : lbank v1 @> rbank v2) (g : rbank v2 ~> lbank v3) :
   ~~ uniq (path_cons f g).
@@ -787,7 +790,12 @@ Admitted.
 Theorem l2r_bpath_decomp (v1 : G) (v2 : G') (f : lbank v1 ~> rbank v2) :
   uniq f -> exists (g : v1 ~> v_abut) (h : v'_abut ~> v2), f =1 h \o o-o \o g.
 Proof.
-Admitted.
+  move: (bwbridge_nun'_inv f) => [f1 [f2 f1f2_eq]] f_un.
+  rewrite -f1f2_eq in f_un.
+  move /uniq_fc4p /andP : f_un => [/un_inl_inl [f1' f1'_eq] /uniq_fc4p /andP [_ /un_inr_inr [f2' f2'_eq]]].
+  exists f1'; exists f2' => p.
+  by rewrite -f1f2_eq pathcomp2funcomp /= f1'_eq f2'_eq.
+Qed.
 
 Theorem r2l_bpath_decomp (v1 : G') (v2 : G) (f : rbank v1 ~>lbank v2) :
   uniq f -> exists (g : v1 ~> v'_abut) (h : v_abut ~> v2), f =1 h \o o-o^<~ \o g.
