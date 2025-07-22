@@ -612,6 +612,14 @@ Definition rabut_id (v1 : G) (v2: G') :
   Bridge_edge (lbank v1) (rbank v2) -> v'_abut = v2.
 Proof. by move=> /andP [_ /eqP e]. Defined.
 
+Definition labut_id_inv (v1 : G) (v2: G') :
+  Bridge_edge (rbank v2) (lbank v1) -> v_abut = v1.
+Proof. by move=> /andP [_ /eqP e]. Defined.
+
+Definition rabut_id_inv (v1 : G) (v2: G') :
+  Bridge_edge (rbank v2) (lbank v1) -> v'_abut = v2.
+Proof. by move=> /andP [/eqP e _]. Defined.
+
 (*Yeah this his horrible...*)
 Definition Bridge_label (v1 v2 : Bridge fg) (e : Bridge_edge v1 v2) :
   Lagois.type (projT2 (Bridge_lattice v1)) (projT2 (Bridge_lattice v2)) :=
@@ -698,23 +706,45 @@ Proof.
   by rewrite /= IH.
 Qed.
 
-Lemma bwbridge_nun' (v1 v3 : G) (v2 : G') (f : lbank v1 @> rbank v2) (g : rbank v2 ~> lbank v3) :
-  exists (g1 : rbank v2 ~> rbank v2) (g2 : rbank v2 @> lbank v1) (g3 : lbank v1 ~> lbank v3), g1 \* g2 \* g3 = g.
+Fixpoint bwbridge_nun' (v2 : G) (v1 : G') (f : rbank v1 ~> lbank v2) {struct f}:
+  exists (f1 : rbank v1 ~> rbank v'_abut) (f2 : lbank v_abut ~> lbank v2), f1 \* o-o^<~ \* f2 = f.
 Proof.
-Admitted.
+  refine (match f with
+    | path_empty v1 => _
+    | path_cons v1 v12 v2 f1 f2 => _
+    end
+  ).
+    elim: v1 => _ //.
+  elim: v1 f1 => [_ _//| v1 f1 ].
+  elim: v2 f2 => v2 f2; elim: v12 f1 f2 => v12 f1 f2; first last.
+  - by [].
+  - by [].
+  - move: (bwbridge_nun' _ _ f2) => [f21 [f22 f21f22_eq]].
+    exists (f1 \* f21); exists f22.
+    by rewrite pathconcatA f21f22_eq.
+  - move: (rabut_id_inv f1) => v'_abut_eq_v1.
+    move: (labut_id_inv f1) => v_abut_eq_v12.
+    elim: v_abut_eq_v12 f1 f2 => f1 f2.
+    elim: v'_abut_eq_v1 f1 => f1.
+    exists ε; exists f2.
+    Check edge_uip.
+    by rewrite /= (edge_uip f1 (edge_sym (lbank v_abut) (rbank v'_abut) o-o)).
+Qed.
+
 
 Lemma bwbridge_nun (v1 v3 : G) (v2 : G') (f : lbank v1 @> rbank v2) (g : rbank v2 ~> lbank v3) :
   ~~ uniq (path_cons f g).
 Proof.
   rewrite /= negb_and Bool.negb_involutive.
   apply/orP; left.
-  move: (bwbridge_nun' f g) => [g1 [g2 [g3 {g}<-]]].
+  move: (bwbridge_nun' g) => [g1 [g2 {g}<-]].
   rewrite /= in_path_homo.
   apply /orP; right.
   rewrite pathcons2concat in_path_homo.
   apply /orP; left.
   rewrite /in_mem /=.
-  by apply /orP; left.
+  apply /orP; left.
+  by elim: (labut_id f).
 Qed.
 
 Fixpoint unf_inl_inl_aux
@@ -741,26 +771,11 @@ Proof.
   by rewrite un_gh in cont.
 Qed.
 
-
-
-
-
-Theorem unf_inl_inl_aux
-  (v1 v2 : Bridge fg)
-  (f : v1 ~> v2)
-  (v1_inl : inl v1)
-  (v2_inl : inl v2)
-  : uniq f -> exists (g : extl v1_inl ~> extl v2_inl),
-    f =1 (eq_rect _ (fun v => v1 ~> v) (eq_rect _ (fun v => v ~> lbank (extl v2_inl)) (pl2p g) v1 (extl_id v1_inl)) v2 (extl_id v2_inl)).
-Proof.
-Admitted.
-
 Theorem un_inl_inl (v1 v2 : G) (f : lbank v1 ~> lbank v2)
   : uniq f -> exists (g : v1 ~> v2), f =1 g.
 Proof.
-  move=> un_f; move: (unf_inl_inl_aux (exist _ v1 erefl) (exist _ v2 erefl) un_f) => /= [g g_eq].
+  move=> un_f; move: (unf_inl_inl_aux un_f) => /= [g ->].
   exists g => p.
-  move/(_ p) : g_eq => ->.
   exact: pl2p_id.
 Qed.
 
