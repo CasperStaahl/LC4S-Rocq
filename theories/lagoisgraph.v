@@ -124,6 +124,9 @@ Proof.
   by rewrite path_reverse_distrb IH /= (edge_uip (edge_sym v2 v1 (edge_sym v1 v2 f))).
 Qed.
 
+Definition prev_invar (P : forall {v1 v2 : G}, (v1~>v2) -> Prop) :=
+  forall v1 v2 (f : v1 ~> v2), P f <-> P f^<~.
+
 (* Definition 13.1 *)
 Definition flow_secure (v : G) := forall (p p' : L(v)), flow p p' -> p <= p'.
 
@@ -271,6 +274,9 @@ Proof.
   rewrite in_path_homo negb_or in v1_nin_f2g.
   by move/andP : v1_nin_f2g => [v1_nin_f2 _].
 Qed.
+
+Lemma rev_uniq (v1 v2 : G) (f : v1 ~> v2) : uniq f -> uniq f^<~.
+Proof. Admitted.
 
 Definition looplen (f : {v & v ~> v :> G}) := pathlen (projT2 f).
 
@@ -731,9 +737,19 @@ Proof.
     by rewrite /= (edge_uip f1 (edge_sym (lbank v_abut) (rbank v'_abut) o-o)).
 Qed.
 
-Fixpoint bwbridge_nun'_inv (v1 : G) (v2 : G') (f : lbank v1 ~> rbank v2) :
+Definition bwbridge_nun'_inv (v1 : G) (v2 : G') (f : lbank v1 ~> rbank v2) :
   exists (f1 : lbank v1 ~> lbank v_abut) (f2 : rbank v'_abut ~> rbank v2), f1 \* o-o \* f2 = f.
-Proof. Admitted.
+Proof.
+  move: (bwbridge_nun' f^<~) => [f2 [f1 f2f1_eq]].
+  exists f1^<~; exists f2^<~.
+  by rewrite
+    -(path_reverse_involution f)
+    -f2f1_eq
+    path_reverse_distrb
+    path_reverse_distrb
+    pathconcatA
+    path_reverse_involution.
+Qed.
 
 Lemma bwbridge_nun (v1 v3 : G) (v2 : G') (f : lbank v1 @> rbank v2) (g : rbank v2 ~> lbank v3) :
   ~~ uniq (path_cons f g).
@@ -778,6 +794,7 @@ Theorem un_inl_inl (v1 v2 : G) (f : lbank v1 ~> lbank v2)
   : uniq f -> exists (g : v1 ~> v2), f =1 g.
 Proof.
   move=> un_f; move: (unf_inl_inl_aux un_f) => /= [g ->].
+
   exists g => p.
   exact: pl2p_id.
 Qed.
@@ -797,7 +814,7 @@ Proof.
   by rewrite -f1f2_eq pathcomp2funcomp /= f1'_eq f2'_eq.
 Qed.
 
-Theorem r2l_bpath_decomp (v1 : G') (v2 : G) (f : rbank v1 ~>lbank v2) :
+Theorem r2l_bpath_decomp (v1 : G') (v2 : G) (f : rbank v1 ~> lbank v2) :
   uniq f -> exists (g : v1 ~> v'_abut) (h : v_abut ~> v2), f =1 h \o o-o^<~ \o g.
 Proof.
 Admitted.
