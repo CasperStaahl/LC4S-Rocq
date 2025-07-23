@@ -678,21 +678,20 @@ HB.instance Definition _ := hasDecEq.Build (Bridge fg) Bridge_eq_axiom.
 
 HB.instance Definition _ := IsLagoisGraph.Build (Bridge fg) Bridge_edge_irefl Bridge_edge_sym Bridge_label_sym.
 
-Definition inl (v : Bridge fg) := {v0 | lbank v0 = v}.
-
-Definition extl (v : Bridge fg) (v_in_l : inl v) : G :=
-  let: exist v0 v_eq := v_in_l in
-    match v_eq with
-    | erefl => v0
-    end.
-
-Definition extl_id (v : Bridge fg) (v_inl : inl v) :
-  lbank (extl v_inl) = v.
-Proof.
-  elim: v_inl => v' v2v'.
-  by refine (match v2v' with erefl => _ end) => /=.
-Defined.
-
+(* Definition inl (v : Bridge fg) := {v0 | lbank v0 = v}. *)
+(**)
+(* Definition extl (v : Bridge fg) (v_in_l : inl v) : G := *)
+(*   let: exist v0 v_eq := v_in_l in *)
+(*     match v_eq with *)
+(*     | erefl => v0 *)
+(*     end. *)
+(**)
+(* Definition extl_id (v : Bridge fg) (v_inl : inl v) : *)
+(*   lbank (extl v_inl) = v. *)
+(* Proof. *)
+(*   elim: v_inl => v' v2v'. *)
+(*   by refine (match v2v' with erefl => _ end) => /=. *)
+(* Defined. *)
 
 Definition el2e (v1 v2 : G)  (f : v1 @> v2) :
   lbank v1 @> lbank v2 := f.
