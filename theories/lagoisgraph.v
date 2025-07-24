@@ -886,17 +886,19 @@ Theorem Bridge_secure : loop_secure_graph G -> loop_secure_graph G' -> loop_secu
 Proof.
   move=> Gs G's; apply /simply_secure_iff_loop_secure.
   elim=> v1; elim=> v2 f g un_f un_g p; last 1 first; rewrite pathcomp2funcomp /comp.
-  - move: (un_inr_inr un_f) (un_inr_inr un_g) => [h /ltac:(rewrite /eqfun) ->] [k /ltac:(rewrite /eqfun) ->].
+  - move/un_inr_inr: un_f => [h /ltac:(rewrite /eqfun) ->].
+    move/un_inr_inr: un_g => [k /ltac:(rewrite /eqfun) ->].
     apply: le_trans.
       exact: (G's v1 (h \* k)).
     by rewrite pathcomp2funcomp /comp.
-  - move: (un_inl_inl un_f) (un_inl_inl un_g) => [h /ltac:(rewrite /eqfun) ->] [k /ltac:(rewrite /eqfun) ->].
+  - move/un_inl_inl: un_f => [h /ltac:(rewrite /eqfun) ->].
+    move/un_inl_inl: un_g => [k /ltac:(rewrite /eqfun) ->].
     apply: le_trans.
       exact: (Gs v1 (h \* k)).
     by rewrite pathcomp2funcomp /comp.
   - move: (l2r_bpath_decomp un_f) => [f_1 [f_2 ->]].
     move: (r2l_bpath_decomp un_g) => [g_1 [g_2 ->]].
-    have idk : Bridge_edge_abuts (f_1 p) <= g_1 (f_2 (Bridge_edge_abuts (f_1 p))).
+    have f1_le_g1g2f1 : o-o (f_1 p) <= g_1 (f_2 (o-o (f_1 p))).
       move: (G's v'_abut (f_2 \* g_1)) => idk'.
       rewrite /loop_secure in idk'.
       move: (pathcomp2funcomp f_2 g_1) => /ltac:(rewrite /eqfun) idk''.
