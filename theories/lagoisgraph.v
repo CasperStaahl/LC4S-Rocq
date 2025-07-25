@@ -746,13 +746,11 @@ Qed.
 Lemma bwbridge_nun_l (v1 v3 : G) (v2 : G') (f : lbank v1 @> rbank v2) (g : rbank v2 ~> lbank v3) :
   ~~ uniq (path_cons f g).
 Proof.
-  rewrite /= negb_and Bool.negb_involutive.
+  rewrite negb_and Bool.negb_involutive.
   apply/orP; left.
-  move: (bwbridge_nun' g) => [g1 [g2 {g}<-]].
-  rewrite /= in_path_homo.
-  apply /orP; right.
-  rewrite pathcons2concat in_path_homo.
-  apply /orP; left.
+  move: (bwbridge_nun' g) => [g1 [g2 {g}<-]] /=.
+  rewrite in_path_homo pathcons2concat in_path_homo.
+  apply /orP; right; apply /orP; left.
   rewrite /in_mem /=.
   apply /orP; left.
   by elim: (labut_id f).
