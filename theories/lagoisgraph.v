@@ -647,31 +647,25 @@ end e.
 Lemma Bridge_label_sym (v1 v2 : Bridge fg) (e1 : Bridge_edge v1 v2) (e2 : Bridge_edge v2 v1) :
   (Bridge_label e1).1 =1 (Bridge_label e2).2.
 Proof.
-  elim: v1 e1 e2 => v1 e1 e2.
-    elim: v2 e1 e2 => v2 e1 e2 p.
-      exact: label_sym.
-    have v1_eq_vabut : v_abut = v1 by move: e1 => /andP [/eqP e1 _].
-    have v2_eq_v'abut : v'_abut = v2 by move: e1 => /andP [_ /eqP e1].
-    elim: v1 / v1_eq_vabut e1 e2 p.
-    elim: v2 / v2_eq_v'abut => e1 e2 p.
-    rewrite /=.
-    have idk : labut_id e1 = erefl by exact: eq_axiomK.
-    have idk' : rabut_id e1 = erefl by exact: eq_axiomK.
-    have idk'' : labut_id (Bridge_edge_sym e2) = erefl by exact: eq_axiomK.
-    have idk''' : rabut_id (Bridge_edge_sym e2) = erefl by exact: eq_axiomK.
-    by rewrite idk idk' idk'' idk'''.
-  elim: v2 e1 e2 => v2 e1 e2 p.
-    have v2_eq_vabut : v_abut = v2 by move: e1 => /andP [_ /eqP e1].
-    have v1_eq_v'abut : v'_abut = v1 by move: e1 => /andP [/eqP e1 _].
-    elim: v1 / v1_eq_v'abut e1 e2 p.
-    elim: v2 / v2_eq_vabut => e1 e2 p.
-    rewrite /=.
-    have idk  : labut_id (Bridge_edge_sym e1) = erefl by exact: eq_axiomK.
-    have idk' : rabut_id (Bridge_edge_sym e1) = erefl by exact: eq_axiomK.
-    have idk'' : labut_id e2 = erefl by exact: eq_axiomK.
-    have idk''' : rabut_id e2 = erefl by exact: eq_axiomK.
-    by rewrite idk idk' idk'' idk'''.
-  exact: label_sym.
+  elim: v1 e1 e2; elim: v2 => v2 v1 e1 e2; last 1 first.
+  - exact: label_sym.
+  - exact: label_sym.
+  - have v1_eq_vabut : v_abut = v1 by exact: (labut_id e1).
+    have v2_eq_v'abut : v'_abut = v2 by exact: (rabut_id_inv e2).
+    elim: v1 / v1_eq_vabut e1 e2.
+    elim: v2 / v2_eq_v'abut => e1 e2 p /=.
+    have -> : labut_id e1 = erefl by exact: eq_axiomK.
+    have -> : rabut_id e1 = erefl by exact: eq_axiomK.
+    have -> : labut_id (Bridge_edge_sym e2) = erefl by exact: eq_axiomK.
+    by have -> : rabut_id (Bridge_edge_sym e2) = erefl by exact: eq_axiomK.
+  - have v2_eq_vabut : v_abut = v2 by exact: (labut_id e2).
+    have v1_eq_v'abut : v'_abut = v1 by exact: (rabut_id_inv e1).
+    elim: v1 / v1_eq_v'abut e1 e2.
+    elim: v2 / v2_eq_vabut => e1 e2 p /=.
+    have -> : labut_id (Bridge_edge_sym e1) = erefl by exact: eq_axiomK.
+    have -> : rabut_id (Bridge_edge_sym e1) = erefl by exact: eq_axiomK.
+    have -> : labut_id e2 = erefl by exact: eq_axiomK.
+    by have -> : rabut_id e2 = erefl by exact: eq_axiomK.
 Qed.
 
 HB.instance Definition _ := hasDecEq.Build (Bridge fg) Bridge_eq_axiom.
