@@ -554,26 +554,13 @@ Definition Bridge_eq (v1 v2 : Bridge fg) :=
 
 Lemma Bridge_eq_axiom : eq_axiom Bridge_eq.
 Proof.
-  move=> v1 v2.
-  case: v1 => v1.
-  - case: v2 => v2; first last.
-      exact: ReflectF.
-    rewrite /=.
-    case v1_eq_v2: (v1 == v2); move /eqP in v1_eq_v2.
-      apply: ReflectT.
-      by rewrite v1_eq_v2.
-    apply: ReflectF.
-    injection.
-    exact: v1_eq_v2.
-  - case: v2 => v2.
-      exact: ReflectF.
-    rewrite /=.
-    case v1_eq_v2: (v1 == v2); move /eqP in v1_eq_v2.
-      apply: ReflectT.
-      by rewrite v1_eq_v2.
-    apply: ReflectF.
-    injection.
-    exact: v1_eq_v2.
+  elim=> v1; elim=> v2;
+  do[ exact: ReflectF |
+      rewrite /=;
+      case v1_eq_v2: (v1 == v2); move /eqP in v1_eq_v2;
+      do[ apply: ReflectT; by rewrite v1_eq_v2 |
+          apply: ReflectF; injection; exact: v1_eq_v2 ]
+  ].
 Qed.
 
 Definition Bridge_lattice (v : Bridge fg) :=
@@ -601,13 +588,8 @@ Proof. elim: v => v; exact: edge_irefl. Qed.
 Lemma Bridge_edge_sym (v1 v2 : Bridge fg) :
   Bridge_edge v1 v2 -> Bridge_edge v2 v1.
 Proof.
-  elim: v1 => v1.
-    elim: v2 => v2 => /=.
-      exact: edge_sym.
-    by rewrite Bool.andb_comm.
-  elim: v2 => v2 => /=.
-    by rewrite Bool.andb_comm.
-  exact: edge_sym.
+  elim: v1; elim: v2 => v2 v1 /=;
+  do [exact: edge_sym | by rewrite Bool.andb_comm].
 Qed.
 
 Definition labut_id (v1 : G) (v2: G') :
@@ -647,9 +629,8 @@ end e.
 Lemma Bridge_label_sym (v1 v2 : Bridge fg) (e1 : Bridge_edge v1 v2) (e2 : Bridge_edge v2 v1) :
   (Bridge_label e1).1 =1 (Bridge_label e2).2.
 Proof.
-  elim: v1 e1 e2; elim: v2 => v2 v1 e1 e2; last 1 first.
-  - exact: label_sym.
-  - exact: label_sym.
+  elim: v1 e1 e2; elim: v2 => v2 v1 e1 e2;
+  do [exact: label_sym|].
   - have v1_eq_vabut : v_abut = v1 by exact: (labut_id e1).
     have v2_eq_v'abut : v'_abut = v2 by exact: (rabut_id_inv e2).
     elim: v1 / v1_eq_vabut e1 e2.
