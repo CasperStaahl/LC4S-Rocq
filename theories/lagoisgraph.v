@@ -919,3 +919,21 @@ Proof.
 Qed.
 
 End Bridge.
+
+Section LTransform.
+
+Definition LTransform (G G' : LagoisGraph.type) := forall (v : G), {v' : G' & L(v) -> L(v')}.
+Notation "G l=> G'" := (LTransform G G') (at level 60).
+
+Context (G G' : LagoisGraph.type).
+
+Lemma LTransform_carry (F : G l=> G') :
+  (forall (v1 v2 : G) (p : L(v1)) (q : L(v2)), flow p q -> flow (projT2 (F v1) p) (projT2 (F v2) q)) ->
+  (forall (v : G) (p1 p2 : L(v)), (projT2 (F v) p1) <= (projT2 (F v) p2) -> p1 <= p2) ->
+  flow_secure_graph G' ->
+  flow_secure_graph G.
+Proof.
+  by move=> F_flowmono F_comono F_flowsecure v p p' /F_flowmono /F_flowsecure /F_comono Fp2Fp'.
+Qed.
+
+End LTransform.
