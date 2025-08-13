@@ -52,7 +52,8 @@ Inductive Stmt {v : G} : Type :=
   | assign : Var -> Exp -> Stmt
   | putbuf : L(v) -> Exp -> Stmt
   | getbuf : L(v) -> Var -> Stmt
-  | exch (v' : G) (f : v @> v') : L(v) -> Stmt
+  | send (v' : G) (f : v @> v') : L(v) -> Stmt
+  | receive (v' : G) (g : v' @> v) : L(v') -> Stmt
   | ifelse : Exp -> Stmt -> Stmt -> Stmt
   | while : Exp -> Stmt -> Stmt
   | seque : Stmt -> Stmt -> Stmt.
@@ -66,7 +67,8 @@ Inductive Sig {v : G} : Type :=
   | ε_sig : Sig
   | putbuf_sig : L(v) -> Val -> Sig
   | getbuf_sig : L(v) -> Val -> Sig
-  | exch_sig (v' : G) : L(v) -> L(v') -> Val -> Sig.
+  | send_sig (v' : G) : L(v) -> L(v') -> Val -> Sig
+  | receive_sig (v' : G) : L(v') -> L(v) -> Val -> Sig.
 
 (* Small steps semantics of local execution *)
 Inductive SemSS {v : G} : @Sig v -> State v -> State v -> Prop :=
@@ -85,11 +87,15 @@ Inductive SemSS {v : G} : @Sig v -> State v -> State v -> Prop :=
       SemSS (getbuf_sig p n)
           (getbuf p x, m, b)
           (skip, [eta m with x |-> n] : Mem, [eta b with p |-> behead (b p)] : BufM v)
-  | ex_exch m b v' (f : v @> v') p n :
+  | ex_send m b v' (f : v @> v') p n :
       ohead (b p) == Some (n) ->
-      SemSS (exch_sig p (f p) n)
-          (exch f p, m, b)
+      SemSS (send_sig p (f p) n)
+          (send f p, m, b)
           (skip, m, [eta b with p |-> behead (b p)] : BufM v)
+  | ex_receive m b v' (g : v' @> v) q n :
+      SemSS (receive_sig q (g q) n)
+          (receive g q, m, b)
+          (skip, m, [eta b with (g q) |-> b (g q) ++ [:: n]] : BufM v)
   | ex_ifelse_ff m b e s1 s2 :
       ExpSem m e == 0 ->
       SemSS ε_sig
@@ -134,21 +140,28 @@ Inductive GSemSS : Ev -> GState -> GState -> Prop :=
   | Ex_sp St v st st':
       St v = st ->
       SemSS ε_sig st st' ->
-      GSemSS ε_ev St (@update_GState St v st')
+      GSemSS ε_ev St (update_GState St st')
   | Ex_putbuf St v st st' (p : L(v)) n :
       St v = st ->
       SemSS (putbuf_sig p n) st st' ->
-      GSemSS (putbuf_ev p n) St (@update_GState St v st')
+      GSemSS (putbuf_ev p n) St (update_GState St st')
   | Ex_getbuf St v st st' (p : L(v)) n :
       St v = st ->
       SemSS (getbuf_sig p n) st st' ->
-      GSemSS (getbuf_ev p n) St (@update_GState St v st')
+      GSemSS (getbuf_ev p n) St (update_GState St st')
   | Ex_exch St v1 v2 st1 st1' st2 st2' (p : L(v1)) (q : L(v2)) n:
       St v1 = st1 ->
       St v2 = st2 ->
-      SemSS (exch_sig p q n) st1 st1' ->
-      SemSS (putbuf_sig q n) st2 st2'  ->
+      SemSS (send_sig p q n) st1 st1' ->
+      SemSS (receive_sig p q n) st2 st2'  ->
       GSemSS (exch_ev p q n) St (update_GState (update_GState St st1') st2').
+
+Inductive trace {v : G} : State v -> State v -> Type :=
+  | exs_refl st : trace st st
+  | exs_trans st st' st'' φ :
+      trace st st' ->
+      SemSS φ st' st'' ->
+      trace st st''.
 
 (* Definition 17 *)
 Inductive Trace : GState -> GState -> Type :=
@@ -158,40 +171,60 @@ Inductive Trace : GState -> GState -> Type :=
       GSemSS α St' St'' ->
       Trace St St''.
 
-Definition PMem := (Var -> option Val).
+Context (v : G) (ℓ : L(v)).
 
-Section Security.
+Definition check_ℓ T (x : T) (ℓ' : L(v)) : seq T :=
+  if ℓ' < ℓ then [:: x] else [::].
 
-Variables (G : LagoisGraph.type)
-    (A : Atk.type G) (loc : G) (lvl : L(loc)) (λ : Var -> L(loc)).
-
-(* Definition of observable sequences *)
-Definition obs (m : Mem) : PMem :=
-  fun x => if (λ x <= lvl) then Some (m x) else None.
-
-Fixpoint Obs St St'' (t : @Trace G St St'') : seq PMem :=
+Fixpoint obs st st'' (t : trace st st'') : seq Sig :=
   match t with
-  | exs_refl St => [:: obs (St loc).2]
-  | exs_trans St St' St'' α t' _ =>
-      let μs := Obs t' in
-        match α with
-        | ε_ev => μs
-        | ass_ev v x => if (loc == v) && (λ x <= lvl)
-                       then obs (St'' loc).2 :: μs
-                       else μs
-        end
+  | exs_refl _ => [::]
+  | exs_trans _ _ _ φ t' _ => match φ with
+                              | ε_sig => obs t'
+                              | putbuf_sig ℓ' n
+                              | getbuf_sig ℓ' n => check_ℓ φ ℓ' ++ obs t'
+                              | send_sig v' ℓ' ℓ'' n => check_ℓ (getbuf_sig ℓ' n) ℓ' ++ obs t'
+                              | receive_sig v' ℓ'' ℓ' n => check_ℓ (putbuf_sig ℓ' n) ℓ' ++ obs t'
+                              end
   end.
+
+Fixpoint Obs St St'' (t : Trace St St'') : seq Ev :=
+  match t with
+  | Exs_refl _ => [::]
+  | Exs_trans _ _ _ α t' _ => match α with
+                              | ε_ev => Obs t'
+                              | putbuf_ev v' ℓ' n
+                              | getbuf_ev v' ℓ' n =>
+                                  match @eqP _ v v' with
+                                  | ReflectT v2v' =>
+                                      match v2v' with
+                                      | erefl => fun ℓ' => check_ℓ α ℓ' ++ Obs t'
+                                      end ℓ'
+                                  | ReflectF v0v' => Obs t'
+                                  end
+                              | exch_ev v' v'' ℓ' ℓ'' n =>
+                                  match @eqP _ v v' with
+                                  | ReflectT v2v' =>
+                                      match v2v' with
+                                      | erefl => fun ℓ' => check_ℓ (getbuf_ev ℓ' n) ℓ' ++ Obs t'
+                                      end ℓ'
+                                  | ReflectF v0v' =>
+                                      match @eqP _ v v'' with
+                                      | ReflectT v2v'' => match v2v'' with
+                                                          | erefl => fun ℓ'' => check_ℓ (putbuf_ev ℓ'' n) ℓ'' ++ Obs t'
+                                                          end ℓ''
+                                      | ReflectF v0v'' => Obs t'
+                                      end
+                                  end
+                              end
+  end.
+
+Definition SemTrace (st : State v) (τ : seq Sig) : Prop :=
+  exists st' (t : trace st st'), obs t = τ.
 
 (* Definition of State emitting observable sequence *)
-Definition GSemTrace (St : GState G) (μs : seq PMem) : Prop :=
-  exists St' (t : Trace St St'), Obs t = μs.
-
-(* Definition of A(μs) *)
-Fixpoint observe (μs : seq PMem) : A :=
-  match μs with
-  | [::] => σ_init
-  | μ :: μs' => δ (observe μs') μ
-  end.
+Definition GSemTrace (St : GState) (τ : seq Ev) : Prop :=
+  exists St' (t : Trace St St'), Obs t = τ.
 
 (* Definition of knowledge *)
 Definition k (S : G -> Stmt) (σ : A) : Ensemble Mem :=
