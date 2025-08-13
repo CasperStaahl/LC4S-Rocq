@@ -148,14 +148,14 @@ Inductive GSemSS : Ev -> GState -> GState -> Prop :=
       St v2 = st2 ->
       SemSS (exch_sig p q n) st1 st1' ->
       SemSS (putbuf_sig q n) st2 st2'  ->
-      GSemSS (exch_ev p q n) St (@update_GState (@update_GState St v1 st1') v2 st2').
+      GSemSS (exch_ev p q n) St (update_GState (update_GState St st1') st2').
 
 (* Definition 17 *)
-Inductive Trace G : GState G -> GState G -> Type :=
-  | exs_refl St : Trace St St
-  | exs_trans St St' St'' α :
+Inductive Trace : GState -> GState -> Type :=
+  | Exs_refl St : Trace St St
+  | Exs_trans St St' St'' α :
       Trace St St' ->
-      GSemSS St' α St'' ->
+      GSemSS α St' St'' ->
       Trace St St''.
 
 Definition PMem := (Var -> option Val).
