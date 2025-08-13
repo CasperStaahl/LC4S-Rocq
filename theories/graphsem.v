@@ -160,13 +160,6 @@ Inductive Trace : GState -> GState -> Type :=
 
 Definition PMem := (Var -> option Val).
 
-(* Definition 18 *)
-HB.mixin Record IsAtk (G : LagoisGraph.type) Σ := {
-  σ_init : Σ;
-  δ : Σ -> PMem -> Σ;
-}.
-HB.structure Definition Atk G := {Sts of IsAtk G Sts}.
-
 Section Security.
 
 Variables (G : LagoisGraph.type)
