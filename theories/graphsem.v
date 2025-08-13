@@ -125,15 +125,13 @@ Inductive Ev : Type :=
 
 Definition GState := forall (v : G), State v.
 
-Definition update_GState (St : GState) (v : G) (st : State v): GState.
-Proof.
-  move=> v'.
-  case v_eq_v': (v == v').
-    move/eqP in v_eq_v'.
-    elim: v_eq_v'.
-    exact: st.
-  exact: (St v').
-Defined.
+Definition update_GState (St : GState) (v : G) (st : State v) : GState :=
+  fun v' => match @eqP _ v v' with
+            | ReflectT v2v' => match v2v' with
+                               | erefl => st
+                               end
+            | ReflectF _ => St v'
+            end.
 
 (* Small steps semantics of distributed execution *)
 Inductive GSemSS : Ev -> GState -> GState -> Prop :=
@@ -246,20 +244,54 @@ Definition Nonintf (St : GState) : Prop :=
 
 End observations.
 
-Check Nonintf.
+Definition Trace2trace' v (α : Ev) : seq (@Sig v) :=
+  match α with
+  | putbuf_ev v' ℓ' n => match @eqP _ v v' with
+                         | ReflectT v2v' => match v2v' with
+                                            | erefl => fun ℓ' => [:: putbuf_sig ℓ' n]
+                                            end ℓ'
+                         | ReflectF _ => [::]
+                          end
+  | getbuf_ev v' ℓ' n => match @eqP _ v v' with
+                         | ReflectT v2v' => match v2v' with
+                                            | erefl => fun ℓ' => [:: getbuf_sig ℓ' n]
+                                            end ℓ'
+                         | ReflectF _ => [::]
+                          end
+  | _ => [::]
+  end.
+
+Fixpoint Trace2trace v (τ : seq Ev) : seq (@Sig v) :=
+  match τ with
+  | [::] => [::]
+  | α :: τ' => Trace2trace' v α ++ Trace2trace v τ'
+  end.
+
+Check GSemTrace.
+
+Lemma GSemTrace2SemTrace v (ℓ : L(v)) St τ : GSemTrace ℓ St τ -> SemTrace ℓ (St v) (Trace2trace v τ).
+Proof.
+  elim: τ => [ _ | α τ IH [St' [t t2τ]]].
+    by exists (St v); exists (exs_refl (St v)).
+  elim: α t2τ.
+  - admit. (* contradiction *)
+  - admit.
+  - admit.
+  - admit.
+Admitted.
 
 Theorem soundness (St : GState) :
-  (forall v ℓ, @nonintf v ℓ (St v)) -> forall v ℓ, @Nonintf v ℓ St.
+  loop_secure_graph G -> (forall v ℓ, @nonintf v ℓ (St v)) -> forall v ℓ, @Nonintf v ℓ St.
 Proof.
   rewrite /nonintf /Nonintf /SemTrace /GSemTrace /Included /In /k /K=> idk.
-  move=> v ℓ τ α [St' [t t2ατ]] b [St0 [[St0' [t0 t02τ]] St0v2_eq_b]].
-  rewrite /GSemTrace.
-  exists St0; split => [|//].
-  elim: α t2ατ.
-  - admit. (* This case should be a contradiction as an attacker will never observe an ε event. *)
-  - move=> v' q n t2ατ.
-  - admit.
-  - admit. (* Also a contradiction exchange events are only partially visible to an attacker. *)
+(*   move=> v ℓ τ α [St' [t t2ατ]] b [St0 [[St0' [t0 t02τ]] St0v2_eq_b]]. *)
+(*   rewrite /GSemTrace. *)
+(*   exists St0; split => [|//]. *)
+(*   elim: α t2ατ. *)
+(*   - admit. (* This case should be a contradiction as an attacker will never observe an ε event. *) *)
+(*   - move=> v' q n t2ατ. *)
+(*   - admit. *)
+(*   - admit. (* Also a contradiction exchange events are only partially visible to an attacker. *) *)
 Admitted.
 
 End graphsem.
