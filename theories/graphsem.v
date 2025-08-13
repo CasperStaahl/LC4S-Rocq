@@ -16,7 +16,7 @@ From Lagois Require Import lagoisgraph.
 (* From Coq Require Import Logic.EqdepFacts. *)
 (* Require Import Coq.Arith.Wf_nat. *)
 
-Section abstract_syntax.
+Section graphsem.
 
 Context
   (G : LagoisGraph.type)
@@ -171,6 +171,8 @@ Inductive Trace : GState -> GState -> Type :=
       GSemSS α St' St'' ->
       Trace St St''.
 
+Section observations.
+
 Context (v : G) (ℓ : L(v)).
 
 Definition check_ℓ T (x : T) (ℓ' : L(v)) : seq T :=
@@ -227,41 +229,37 @@ Definition GSemTrace (St : GState) (τ : seq Ev) : Prop :=
   exists St' (t : Trace St St'), Obs t = τ.
 
 (* Definition of knowledge *)
-Definition k (S : G -> Stmt) (σ : A) : Ensemble Mem :=
-  fun m => exists St μs, GSemTrace St μs
-                            /\ (forall v, (St v).1 = S v)
-                            /\ (St loc).2 = m
-                            /\ observe μs = σ.
+Definition k (s : Stmt) (t : seq Sig) : Ensemble (BufM v) :=
+  fun b => exists m, SemTrace (s, m, b) t.
 
-Definition k_plus (S : G -> Stmt) (σ : A) : Ensemble Mem :=
-  fun m => exists St μs μ, GSemTrace St (μ :: μs)
-                            /\ (forall v, (St v).1 = S v)
-                            /\ (St loc).2 = m
-                            /\ observe μs = σ.
-
-(* Definition of observable initial memory *)
-Definition m_equiv (m m' : Mem) : Prop :=
-  forall x, λ x <= lvl -> m x = m' x.
-
-Definition m_equiv_class (m : Mem) : Ensemble Mem :=
-  fun m' => m_equiv m m'.
+Definition K (S : forall v, @Stmt v) (t : seq Ev) : Ensemble (BufM v) :=
+  fun b => exists St, GSemTrace St t /\ (St v).2 = b.
 
 (* Definition 19 *)
-Definition nonintf (St : GState G) : Prop :=
-  forall μs μ, GSemTrace St (μ :: μs) ->
-    Included _
-      (Intersection _
-        (m_equiv_class (St loc).2)
-        (k (fun v => (St v).1) (observe μs)))
-      (k (fun v => (St v).1) (observe (μ :: μs))).
+Definition nonintf (st : State v) : Prop :=
+  forall t φ, SemTrace st (φ :: t) ->
+  Included _ (k st.1.1 t) (k st.1.1 (φ :: t)).
 
-(* Definition 20 *)
-Definition pi_nonintf (St : GState G) : Prop :=
-  forall μs μ, GSemTrace St (μ :: μs) ->
-    Included _
-      (Intersection _
-        (m_equiv_class (St loc).2)
-        (k_plus (fun v => (St v).1) (observe μs)))
-      (k (fun v => (St v).1) (observe (μ :: μs))).
+Definition Nonintf (St : GState) : Prop :=
+  forall t α, GSemTrace St (α :: t) ->
+  Included _ (K (fun v' => (St v').1.1) t) (K (fun v' => (St v').1.1) (α :: t)).
 
-End Security.
+End observations.
+
+Check Nonintf.
+
+Theorem soundness (St : GState) :
+  (forall v ℓ, @nonintf v ℓ (St v)) -> forall v ℓ, @Nonintf v ℓ St.
+Proof.
+  rewrite /nonintf /Nonintf /SemTrace /GSemTrace /Included /In /k /K=> idk.
+  move=> v ℓ τ α [St' [t t2ατ]] b [St0 [[St0' [t0 t02τ]] St0v2_eq_b]].
+  rewrite /GSemTrace.
+  exists St0; split => [|//].
+  elim: α t2ατ.
+  - admit. (* This case should be a contradiction as an attacker will never observe an ε event. *)
+  - move=> v' q n t2ατ.
+  - admit.
+  - admit. (* Also a contradiction exchange events are only partially visible to an attacker. *)
+Admitted.
+
+End graphsem.
