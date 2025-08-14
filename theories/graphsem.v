@@ -212,8 +212,8 @@ Fixpoint Obs St St'' (t : Trace St St'') : seq Sig :=
                                                                         end ℓ'
                                                      | _ => match @eqP _ v v'' with
                                                             | ReflectT v2v'' => match v2v'' with
-                                                                               | erefl => fun ℓ'' => receive_sig ℓ'' n ℓ' :(ℓ'' <= ℓ): Obs t'
-                                                                               end ℓ''
+                                                                                | erefl => fun ℓ'' => receive_sig ℓ'' n ℓ' :(ℓ'' <= ℓ): Obs t'
+                                                                                end ℓ''
                                                             | _ => Obs t'
                                                             end
                                                      end
@@ -224,7 +224,7 @@ Definition SemTrace (st : State v) (τ : seq Sig) : Prop :=
   exists st' (t : trace st st'), obs t = τ.
 
 (* Definition of State emitting observable sequence *)
-Definition GSemTrace (St : GState) (τ : seq Ev) : Prop :=
+Definition GSemTrace (St : GState) (τ : seq Sig) : Prop :=
   exists St' (t : Trace St St'), Obs t = τ.
 
 (* Definition of knowledge *)
