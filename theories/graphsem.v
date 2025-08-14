@@ -207,16 +207,16 @@ Fixpoint Obs St St'' (t : Trace St St'') : seq Sig :=
                                                      | _ => Obs t'
                                                      end
                               | exch_ev v' ℓ' n v'' ℓ'' => match @eqP _ v v' with
-                                                     | ReflectT v2v' => match v2v' with
-                                                                        | erefl => fun ℓ' => send_sig ℓ' n ℓ'' :(ℓ' <= ℓ): Obs t'
-                                                                        end ℓ'
-                                                     | _ => match @eqP _ v v'' with
-                                                            | ReflectT v2v'' => match v2v'' with
-                                                                                | erefl => fun ℓ'' => receive_sig ℓ'' n ℓ' :(ℓ'' <= ℓ): Obs t'
-                                                                                end ℓ''
-                                                            | _ => Obs t'
-                                                            end
-                                                     end
+                                                           | ReflectT v2v' => match v2v' with
+                                                                              | erefl => fun ℓ' => send_sig ℓ' n ℓ'' :(ℓ' <= ℓ): Obs t'
+                                                                              end ℓ'
+                                                           | _ => match @eqP _ v v'' with
+                                                                  | ReflectT v2v'' => match v2v'' with
+                                                                                      | erefl => fun ℓ'' => receive_sig ℓ'' n ℓ' :(ℓ'' <= ℓ): Obs t'
+                                                                                      end ℓ''
+                                                                  | _ => Obs t'
+                                                                  end
+                                                           end
                               end
   end.
 
