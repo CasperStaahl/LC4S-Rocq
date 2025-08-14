@@ -121,7 +121,7 @@ Inductive Ev : Type :=
   | ε_ev : Ev
   | putbuf_ev (v : G) : L(v) -> Val -> Ev
   | getbuf_ev (v : G) : L(v) -> Val -> Ev
-  | exch_ev (v v' : G) : L(v) -> L(v') -> Val -> Ev.
+  | exch_ev (v : G) : L(v) -> Val -> forall (v' : G), L(v') -> Ev.
 
 Definition GState := forall (v : G), State v.
 
@@ -150,9 +150,9 @@ Inductive GSemSS : Ev -> GState -> GState -> Prop :=
   | Ex_exch St v1 v2 st1' st2' (p : L(v1)) (q : L(v2)) n:
       let st1 := St v1 in
       let st2 := St v2 in
-      SemSS (send_sig p q n) st1 st1' ->
-      SemSS (receive_sig p q n) st2 st2'  ->
-      GSemSS (exch_ev p q n) St (update_GState (update_GState St st1') st2').
+      SemSS (send_sig p n q) st1 st1' ->
+      SemSS (receive_sig q n p) st2 st2'  ->
+      GSemSS (exch_ev p n q) St (update_GState (update_GState St st1') st2').
 
 Inductive trace {v : G} : State v -> State v -> Type :=
   | exs_refl st : trace st st
@@ -184,8 +184,8 @@ Fixpoint obs st st'' (t : trace st st'') : seq Sig :=
                               | ε_sig => obs t'
                               | putbuf_sig ℓ' n
                               | getbuf_sig ℓ' n
-                              | send_sig _ ℓ' _ n
-                              | receive_sig _ _ ℓ' n => φ :(ℓ' < ℓ): (obs t')
+                              | send_sig ℓ' n _ _
+                              | receive_sig ℓ' n _ _ => φ :(ℓ' <= ℓ): (obs t')
                               end
   end.
 
@@ -194,29 +194,29 @@ Fixpoint Obs St St'' (t : Trace St St'') : seq Sig :=
   | Exs_refl _ => [::]
   | Exs_trans _ _ _ α t' _ => match α with
                               | ε_ev => Obs t'
-                              | putbuf_ev v' ℓ' n
-                              | getbuf_ev v' ℓ' n =>
-                                  match @eqP _ v v' with
-                                  | ReflectT v2v' =>
-                                      match v2v' with
-                                      | erefl => fun ℓ' => check_ℓ α ℓ' ++ Obs t'
-                                      end ℓ'
-                                  | ReflectF v0v' => Obs t'
-                                  end
-                              | exch_ev v' v'' ℓ' ℓ'' n =>
-                                  match @eqP _ v v' with
-                                  | ReflectT v2v' =>
-                                      match v2v' with
-                                      | erefl => fun ℓ' => check_ℓ (getbuf_ev ℓ' n) ℓ' ++ Obs t'
-                                      end ℓ'
-                                  | ReflectF v0v' =>
-                                      match @eqP _ v v'' with
-                                      | ReflectT v2v'' => match v2v'' with
-                                                          | erefl => fun ℓ'' => check_ℓ (putbuf_ev ℓ'' n) ℓ'' ++ Obs t'
-                                                          end ℓ''
-                                      | ReflectF v0v'' => Obs t'
-                                      end
-                                  end
+                              | putbuf_ev v' ℓ' n => match @eqP _ v v' with
+                                                     | ReflectT v2v' => match v2v' with
+                                                                        | erefl => fun ℓ' => putbuf_sig ℓ' n :(ℓ' <= ℓ): Obs t'
+                                                                        end ℓ'
+                                                     | _ => Obs t'
+                                                     end
+                              | getbuf_ev v' ℓ' n => match @eqP _ v v' with
+                                                     | ReflectT v2v' => match v2v' with
+                                                                        | erefl => fun ℓ' => getbuf_sig ℓ' n :(ℓ' <= ℓ): Obs t'
+                                                                        end ℓ'
+                                                     | _ => Obs t'
+                                                     end
+                              | exch_ev v' ℓ' n v'' ℓ'' => match @eqP _ v v' with
+                                                     | ReflectT v2v' => match v2v' with
+                                                                        | erefl => fun ℓ' => send_sig ℓ' n ℓ'' :(ℓ' <= ℓ): Obs t'
+                                                                        end ℓ'
+                                                     | _ => match @eqP _ v v'' with
+                                                            | ReflectT v2v'' => match v2v'' with
+                                                                               | erefl => fun ℓ'' => receive_sig ℓ'' n ℓ' :(ℓ'' <= ℓ): Obs t'
+                                                                               end ℓ''
+                                                            | _ => Obs t'
+                                                            end
+                                                     end
                               end
   end.
 
