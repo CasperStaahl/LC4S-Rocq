@@ -182,9 +182,9 @@ Fixpoint obs st st'' (t : trace st st'') : seq Sig :=
   | exs_trans _ _ _ φ t' _ => match φ with
                               | ε_sig => obs t'
                               | putbuf_sig ℓ' n
-                              | getbuf_sig ℓ' n => check_ℓ φ ℓ' ++ obs t'
-                              | send_sig v' ℓ' ℓ'' n => check_ℓ (getbuf_sig ℓ' n) ℓ' ++ obs t'
-                              | receive_sig v' ℓ'' ℓ' n => check_ℓ (putbuf_sig ℓ' n) ℓ' ++ obs t'
+                              | getbuf_sig ℓ' n
+                              | send_sig _ ℓ' _ n
+                              | receive_sig _ _ ℓ' n => check_ℓ φ ℓ' ++ obs t'
                               end
   end.
 
