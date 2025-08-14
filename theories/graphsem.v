@@ -58,7 +58,7 @@ Inductive Stmt {v : G} : Type :=
   | while : Exp -> Stmt -> Stmt
   | seque : Stmt -> Stmt -> Stmt.
 
-Definition Buf := seq Val.
+Definition Buf := Val.
 Definition BufM (v : G) := L(v) -> Buf.
 Definition State v := (@Stmt v * Mem * BufM v)%type.
 
@@ -72,30 +72,30 @@ Inductive Sig {v : G} : Type :=
 
 (* Small steps semantics of local execution *)
 Inductive SemSS {v : G} : @Sig v -> State v -> State v -> Prop :=
-  | ex_assign m b x e n :
-      ExpSem m e == n ->
+  | ex_assign m b x e :
+      let n := ExpSem m e in
       SemSS ε_sig
           (assign x e, m, b)
           (skip, [eta m with x |-> n] : Mem, b)
-  | ex_putbuf m b p e n :
-      ExpSem m e == n ->
+  | ex_putbuf m b p e :
+      let n := ExpSem m e in
       SemSS (putbuf_sig p n)
           (putbuf p e, m, b)
-          (skip, m, [eta b with p |-> b p ++ [:: n]] : BufM v)
-  | ex_getbuf m b p x n :
-      ohead (b p) == Some (n) ->
+          (skip, m, [eta b with p |-> n] : BufM v)
+  | ex_getbuf m b p x :
+      let n := b p in
       SemSS (getbuf_sig p n)
           (getbuf p x, m, b)
-          (skip, [eta m with x |-> n] : Mem, [eta b with p |-> behead (b p)] : BufM v)
-  | ex_send m b v' (f : v @> v') p n :
-      ohead (b p) == Some (n) ->
+          (skip, [eta m with x |-> n] : Mem, b)
+  | ex_send m b v' (f : v @> v') p :
+      let n := b p in
       SemSS (send_sig p (f p) n)
           (send f p, m, b)
-          (skip, m, [eta b with p |-> behead (b p)] : BufM v)
+          (skip, m, b)
   | ex_receive m b v' (g : v' @> v) q n :
       SemSS (receive_sig q (g q) n)
           (receive g q, m, b)
-          (skip, m, [eta b with (g q) |-> b (g q) ++ [:: n]] : BufM v)
+          (skip, m, [eta b with (g q) |-> n] : BufM v)
   | ex_ifelse_ff m b e s1 s2 :
       ExpSem m e == 0 ->
       SemSS ε_sig
@@ -283,15 +283,15 @@ Admitted.
 Theorem soundness (St : GState) :
   loop_secure_graph G -> (forall v ℓ, @nonintf v ℓ (St v)) -> forall v ℓ, @Nonintf v ℓ St.
 Proof.
-  rewrite /nonintf /Nonintf /SemTrace /GSemTrace /Included /In /k /K=> idk.
-(*   move=> v ℓ τ α [St' [t t2ατ]] b [St0 [[St0' [t0 t02τ]] St0v2_eq_b]]. *)
-(*   rewrite /GSemTrace. *)
-(*   exists St0; split => [|//]. *)
-(*   elim: α t2ατ. *)
-(*   - admit. (* This case should be a contradiction as an attacker will never observe an ε event. *) *)
-(*   - move=> v' q n t2ατ. *)
-(*   - admit. *)
-(*   - admit. (* Also a contradiction exchange events are only partially visible to an attacker. *) *)
+  (* rewrite /nonintf /Nonintf /SemTrace /GSemTrace /Included /In /k /K=> idk. *)
+  (* move=> v ℓ τ α [St' [t t2ατ]] b [St0 [[St0' [t0 t02τ]] St0v2_eq_b]]. *)
+  (* rewrite /GSemTrace. *)
+  (* exists St0; split => [|//]. *)
+  (* elim: α t2ατ. *)
+  (* - admit. (* This case should be a contradiction as an attacker will never observe an ε event. *) *)
+  (* - move=> v' q n t2ατ. *)
+  (* - admit. *)
+  (* - admit. (* Also a contradiction exchange events are only partially visible to an attacker. *) *)
 Admitted.
 
 End graphsem.
