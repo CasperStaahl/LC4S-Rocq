@@ -135,21 +135,21 @@ Definition update_GState (St : GState) (v : G) (st : State v) : GState :=
 
 (* Small steps semantics of distributed execution *)
 Inductive GSemSS : Ev -> GState -> GState -> Prop :=
-  | Ex_sp St v st st':
-      St v = st ->
+  | Ex_sp St v st':
+      let st := St v in
       SemSS ε_sig st st' ->
       GSemSS ε_ev St (update_GState St st')
-  | Ex_putbuf St v st st' (p : L(v)) n :
-      St v = st ->
+  | Ex_putbuf St v st' (p : L(v)) n :
+      let st := St v in
       SemSS (putbuf_sig p n) st st' ->
       GSemSS (putbuf_ev p n) St (update_GState St st')
-  | Ex_getbuf St v st st' (p : L(v)) n :
-      St v = st ->
+  | Ex_getbuf St v st' (p : L(v)) n :
+      let st := St v in
       SemSS (getbuf_sig p n) st st' ->
       GSemSS (getbuf_ev p n) St (update_GState St st')
-  | Ex_exch St v1 v2 st1 st1' st2 st2' (p : L(v1)) (q : L(v2)) n:
-      St v1 = st1 ->
-      St v2 = st2 ->
+  | Ex_exch St v1 v2 st1' st2' (p : L(v1)) (q : L(v2)) n:
+      let st1 := St v1 in
+      let st2 := St v2 in
       SemSS (send_sig p q n) st1 st1' ->
       SemSS (receive_sig p q n) st2 st2'  ->
       GSemSS (exch_ev p q n) St (update_GState (update_GState St st1') st2').
