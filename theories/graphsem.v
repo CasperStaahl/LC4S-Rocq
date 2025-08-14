@@ -67,8 +67,8 @@ Inductive Sig {v : G} : Type :=
   | ε_sig : Sig
   | putbuf_sig : L(v) -> Val -> Sig
   | getbuf_sig : L(v) -> Val -> Sig
-  | send_sig (v' : G) : L(v) -> L(v') -> Val -> Sig
-  | receive_sig (v' : G) : L(v') -> L(v) -> Val -> Sig.
+  | send_sig : L(v) -> Val -> forall (v' : G), L(v') -> Sig
+  | receive_sig : L(v) -> Val -> forall (v' : G), L(v') -> Sig.
 
 (* Small steps semantics of local execution *)
 Inductive SemSS {v : G} : @Sig v -> State v -> State v -> Prop :=
@@ -89,11 +89,11 @@ Inductive SemSS {v : G} : @Sig v -> State v -> State v -> Prop :=
           (skip, [eta m with x |-> n] : Mem, b)
   | ex_send m b v' (f : v @> v') p :
       let n := b p in
-      SemSS (send_sig p (f p) n)
+      SemSS (send_sig p n (f p))
           (send f p, m, b)
           (skip, m, b)
   | ex_receive m b v' (g : v' @> v) q n :
-      SemSS (receive_sig q (g q) n)
+      SemSS (receive_sig (g q) n q)
           (receive g q, m, b)
           (skip, m, [eta b with (g q) |-> n] : BufM v)
   | ex_ifelse_ff m b e s1 s2 :
@@ -173,8 +173,9 @@ Section observations.
 
 Context (v : G) (ℓ : L(v)).
 
-Definition check_ℓ T (x : T) (ℓ' : L(v)) : seq T :=
-  if ℓ' < ℓ then [:: x] else [::].
+Definition cond_cons T (b : bool) (x : T) (xs : seq T) :=
+  if b then xs else x :: xs.
+Notation "x :( b ): xs" := (cond_cons b x xs) (at level 15).
 
 Fixpoint obs st st'' (t : trace st st'') : seq Sig :=
   match t with
@@ -184,11 +185,11 @@ Fixpoint obs st st'' (t : trace st st'') : seq Sig :=
                               | putbuf_sig ℓ' n
                               | getbuf_sig ℓ' n
                               | send_sig _ ℓ' _ n
-                              | receive_sig _ _ ℓ' n => check_ℓ φ ℓ' ++ obs t'
+                              | receive_sig _ _ ℓ' n => φ :(ℓ' < ℓ): (obs t')
                               end
   end.
 
-Fixpoint Obs St St'' (t : Trace St St'') : seq Ev :=
+Fixpoint Obs St St'' (t : Trace St St'') : seq Sig :=
   match t with
   | Exs_refl _ => [::]
   | Exs_trans _ _ _ α t' _ => match α with
