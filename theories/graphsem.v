@@ -136,22 +136,17 @@ Definition update_GState (St : GState) (v : G) (st : State v) : GState :=
 (* Small steps semantics of distributed execution *)
 Inductive GSemSS : Ev -> GState -> GState -> Prop :=
   | Ex_sp St v st':
-      let st := St v in
-      SemSS ε_sig st st' ->
+      SemSS ε_sig (St v) st' ->
       GSemSS ε_ev St (update_GState St st')
   | Ex_putbuf St v st' (p : L(v)) n :
-      let st := St v in
-      SemSS (putbuf_sig p n) st st' ->
+      SemSS (putbuf_sig p n) (St v) st' ->
       GSemSS (putbuf_ev p n) St (update_GState St st')
   | Ex_getbuf St v st' (p : L(v)) n :
-      let st := St v in
-      SemSS (getbuf_sig p n) st st' ->
+      SemSS (getbuf_sig p n) (St v) st' ->
       GSemSS (getbuf_ev p n) St (update_GState St st')
   | Ex_exch St v1 v2 st1' st2' (p : L(v1)) (q : L(v2)) n:
-      let st1 := St v1 in
-      let st2 := St v2 in
-      SemSS (send_sig p n q) st1 st1' ->
-      SemSS (receive_sig q n p) st2 st2'  ->
+      SemSS (send_sig p n q) (St v1) st1' ->
+      SemSS (receive_sig q n p) (St v2) st2'  ->
       GSemSS (exch_ev p n q) St (update_GState (update_GState St st1') st2').
 
 Inductive trace {v : G} : State v -> State v -> Type :=
@@ -174,7 +169,7 @@ Section observations.
 Context (v : G) (ℓ : L(v)).
 
 Definition cond_cons T (b : bool) (x : T) (xs : seq T) :=
-  if b then xs else x :: xs.
+  if b then x :: xs else xs.
 Notation "x :( b ): xs" := (cond_cons b x xs) (at level 15).
 
 Fixpoint obs st st'' (t : trace st st'') : seq Sig :=
@@ -220,79 +215,47 @@ Fixpoint Obs St St'' (t : Trace St St'') : seq Sig :=
                               end
   end.
 
-Definition SemTrace (st : State v) (τ : seq Sig) : Prop :=
+Definition SemTrace (st : State v) (τ : seq Sig) :=
   exists st' (t : trace st st'), obs t = τ.
 
 (* Definition of State emitting observable sequence *)
-Definition GSemTrace (St : GState) (τ : seq Sig) : Prop :=
+Definition GSemTrace (St : GState) (τ : seq Sig) :=
   exists St' (t : Trace St St'), Obs t = τ.
 
 (* Definition of knowledge *)
 Definition k (s : Stmt) (t : seq Sig) : Ensemble (BufM v) :=
   fun b => exists m, SemTrace (s, m, b) t.
 
-Definition K (S : forall v, @Stmt v) (t : seq Ev) : Ensemble (BufM v) :=
+Definition K (S : forall v, @Stmt v) (t : seq Sig) : Ensemble (BufM v) :=
   fun b => exists St, GSemTrace St t /\ (St v).2 = b.
+
+Definition BufM_equiv (b b' : BufM v) :=
+  forall ℓ', ℓ' <= ℓ -> b ℓ' = b ℓ.
+
+Definition BufM_equiv_class (b : BufM v) : Ensemble (BufM v) :=
+  fun b' => BufM_equiv b b'.
 
 (* Definition 19 *)
 Definition nonintf (st : State v) : Prop :=
   forall t φ, SemTrace st (φ :: t) ->
-  Included _ (k st.1.1 t) (k st.1.1 (φ :: t)).
+  Included _ (Intersection _ (BufM_equiv_class (st.2)) (k st.1.1 t)) (k st.1.1 (φ :: t)).
 
 Definition Nonintf (St : GState) : Prop :=
   forall t α, GSemTrace St (α :: t) ->
-  Included _ (K (fun v' => (St v').1.1) t) (K (fun v' => (St v').1.1) (α :: t)).
+  Included _ (Intersection _ (BufM_equiv_class (St v).2) (K (fun v' => (St v').1.1) t)) (K (fun v' => (St v').1.1) (α :: t)).
+
 
 End observations.
 
-Definition Trace2trace' v (α : Ev) : seq (@Sig v) :=
-  match α with
-  | putbuf_ev v' ℓ' n => match @eqP _ v v' with
-                         | ReflectT v2v' => match v2v' with
-                                            | erefl => fun ℓ' => [:: putbuf_sig ℓ' n]
-                                            end ℓ'
-                         | ReflectF _ => [::]
-                          end
-  | getbuf_ev v' ℓ' n => match @eqP _ v v' with
-                         | ReflectT v2v' => match v2v' with
-                                            | erefl => fun ℓ' => [:: getbuf_sig ℓ' n]
-                                            end ℓ'
-                         | ReflectF _ => [::]
-                          end
-  | _ => [::]
-  end.
+(* Lemma GSemTrace2SemTrace v (ℓ : L(v)) St τ : GSemTrace ℓ St τ -> SemTrace ℓ (St v) τ. *)
+(* Proof. *)
+(* Admitted. *)
 
-Fixpoint Trace2trace v (τ : seq Ev) : seq (@Sig v) :=
-  match τ with
-  | [::] => [::]
-  | α :: τ' => Trace2trace' v α ++ Trace2trace v τ'
-  end.
-
-Check GSemTrace.
-
-Lemma GSemTrace2SemTrace v (ℓ : L(v)) St τ : GSemTrace ℓ St τ -> SemTrace ℓ (St v) (Trace2trace v τ).
-Proof.
-  elim: τ => [ _ | α τ IH [St' [t t2τ]]].
-    by exists (St v); exists (exs_refl (St v)).
-  elim: α t2τ.
-  - admit. (* contradiction *)
-  - admit.
-  - admit.
-  - admit.
-Admitted.
+Print eq.
 
 Theorem soundness (St : GState) :
-  loop_secure_graph G -> (forall v ℓ, @nonintf v ℓ (St v)) -> forall v ℓ, @Nonintf v ℓ St.
+  flow_secure_graph G -> (forall v ℓ, @nonintf v ℓ (St v)) -> forall v ℓ, @Nonintf v ℓ St.
 Proof.
-  (* rewrite /nonintf /Nonintf /SemTrace /GSemTrace /Included /In /k /K=> idk. *)
-  (* move=> v ℓ τ α [St' [t t2ατ]] b [St0 [[St0' [t0 t02τ]] St0v2_eq_b]]. *)
-  (* rewrite /GSemTrace. *)
-  (* exists St0; split => [|//]. *)
-  (* elim: α t2ατ. *)
-  (* - admit. (* This case should be a contradiction as an attacker will never observe an ε event. *) *)
-  (* - move=> v' q n t2ατ. *)
-  (* - admit. *)
-  (* - admit. (* Also a contradiction exchange events are only partially visible to an attacker. *) *)
 Admitted.
 
 End graphsem.
