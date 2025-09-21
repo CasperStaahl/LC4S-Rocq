@@ -938,8 +938,3 @@ Proof.
 Qed.
 
 End LTransform.
-
-Module LagoisGraph_Dec <: DecidableType.
-  Definition U := LagoisGraph.type.
-  Definition eq_dec := LagoisGraph_dec.
-End LagoisGraph_Dec.
