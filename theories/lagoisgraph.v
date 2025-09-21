@@ -14,6 +14,7 @@ From Lagois Require Import lagois.
 Open Scope order_scope.
 From Coq Require Import Logic.EqdepFacts.
 Require Import Coq.Arith.Wf_nat.
+Require Import Logic.Eqdep_dec.
 
 (* Definition 11 *)
 HB.mixin Record IsLagoisGraph V of Equality V := {
@@ -937,3 +938,8 @@ Proof.
 Qed.
 
 End LTransform.
+
+Module LagoisGraph_Dec <: DecidableType.
+  Definition U := LagoisGraph.type.
+  Definition eq_dec := LagoisGraph_dec.
+End LagoisGraph_Dec.
