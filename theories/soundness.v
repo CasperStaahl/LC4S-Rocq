@@ -4,10 +4,7 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 From mathcomp Require Import  ssrbool ssreflect ssrfun order seq eqtype.
 Import Order.LTheory.
-Require Import lagoisgraph.
-Require Import Relations.
-Require Import Sets.Ensembles.
-Require Import Logic.Eqdep_dec.
+Require Import lagoisgraph Relations Sets.Ensembles Logic.Eqdep_dec.
 
 Section soundness.
 
@@ -79,31 +76,25 @@ Definition update (Γ : forall (v : G), L(v) -> N) (v : G) (ρ : L(v) -> N) (v' 
                   end
   end.
 
-Check eq_axiomK.
-
 Proposition respects2noninterference Σ :
   respects Σ -> flow_secure_graph G -> noninterference Σ.
 Proof.
-  rewrite /respects /flow_secure_graph /flow_secure /noninterference /Included /distr_interface_class /distr_interface_equiv /local_interface_class /local_interface_equiv /In /K /𝕂.
   move=> respΣ secG v ℓ σs emitsℓΣσs ρ  ρ_in_equiv.
-  (* set Γ := update (fun v => (Σ v).1) ρ. *)
-  move/(_ v ℓ σs emitsℓΣσs (update (fun v => (Σ v).1) ρ)) in respΣ.
-  have low_flow_eq (v' : G) (ℓ' : L( v')) : flow ℓ' ℓ -> (Σ v').1 ℓ' = (update (fun v => (Σ v).1) ρ) v' ℓ'.
-    rewrite /update.
-    elim: (@eqP _ v v') => [v2v' | //].
-    move: ℓ'.
+  set Γ := update (fun v => (Σ v).1) ρ.
+  have Γvℓ'_eq_ρℓ' ℓ' : Γ v ℓ' = ρ ℓ'.
+    rewrite /Γ /update.
+    elim: (@eqP _ v v) => [v2v | //].
+    by rewrite (eq_axiomK v2v).
+  have low_flow_eq v' ℓ' : flow ℓ' ℓ -> (Σ v').1 ℓ' = Γ v' ℓ'.
+    rewrite /Γ /update.
+    elim: (@eqP _ v v') ℓ' => [v2v' | //].
     refine (match v2v' with erefl => _ end) => ℓ' ℓ'flowℓ.
     move/(_ _ _ _ ℓ'flowℓ) in secG.
     by move/(_ _ secG) in ρ_in_equiv.
-  move: (respΣ low_flow_eq) => [Σ' [rest0 rest1]].
-  move/(_ v) in rest0.
-  have fuck ℓ' : update (fun v : G => (Σ v).1) ρ ℓ' = ρ ℓ'.
-    rewrite /update /=.
-    elim: (@eqP _ v v) => [v2v | //].
-    by move: (eq_axiomK v2v) => ->.
-  rewrite /update in rest0.
-  exists Σ'.
-  split=> [ℓ'|//].
-  by rewrite -fuck.
+  move/(_ v ℓ σs emitsℓΣσs Γ) in respΣ.
+  move: (respΣ low_flow_eq) => [Σ' [low_eq emitsℓΣ'σs]].
+  move/(_ v) in low_eq.
+  exists Σ'; split=> [ℓ' | //].
+  by rewrite -Γvℓ'_eq_ρℓ'.
 Qed.
 
