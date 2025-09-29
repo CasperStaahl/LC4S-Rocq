@@ -12,6 +12,10 @@ Context (G : LagoisGraph.type) (S : Type) (N : forall (v : G) (ℓ : L(v)), Type
 Definition 𝒮 := forall (v : G), (forall ℓ : L(v), N ℓ) * S : Type.
 Context (R : 𝒮 -> 𝒮 -> Prop).
 
+Definition Interface := forall (v : G) (ℓ : L(v)), N ℓ.
+Definition LocalInterface v := forall ℓ : L(v), N ℓ.
+Definition Observation v := seq (forall (ℓ : L(v)), option (N ℓ)).
+
 Inductive connected : seq 𝒮 -> Prop :=
   | connects_empty : connected [::]
   | connects_singleton x : connected [:: x]
@@ -27,7 +31,7 @@ Coercion Trace2Seq : Trace >-> seq.
 Definition obs (v : G) (ℓ : L(v)) (Σ : 𝒮) (ℓ' : L(v)) : option (N ℓ') :=
   if ℓ' <= ℓ then Some ((Σ v).1 ℓ') else None.
 
-Inductive Obs (v : G) (ℓ : L(v)) : seq 𝒮  -> seq (forall ℓ, option (N ℓ)) -> Prop :=
+Inductive Obs (v : G) (ℓ : L(v)) : seq 𝒮  -> Observation v -> Prop :=
   | Obs_empty : Obs ℓ [::] [::]
   | Obs_empty' Σ Σs :
       Obs ℓ Σs [::] ->
@@ -41,34 +45,34 @@ Inductive Obs (v : G) (ℓ : L(v)) : seq 𝒮  -> seq (forall ℓ, option (N ℓ
       Obs ℓ Σs (σ :: σs) ->
       Obs ℓ (Σ :: Σs) (obs ℓ Σ :: σ :: σs).
 
-Definition emits (v : G) (ℓ : L(v)) (Σ : 𝒮) (σs : seq (forall ℓ, option (N ℓ))) : Prop :=
+Definition emits (v : G) (ℓ : L(v)) (Σ : 𝒮) (σs : Observation v) : Prop :=
   exists (Σs Σs' : Trace), Σs = Σ :: Σs' :> seq 𝒮 /\ Obs ℓ Σs σs.
 
-Definition distr_interface_equiv (v : G) (ℓ : L(v)) (Γ Γ' : forall (v : G) (ℓ : L(v)), N ℓ) : Prop :=
+Definition distr_interface_equiv (v : G) (ℓ : L(v)) (Γ Γ' : Interface) : Prop :=
   forall (v' : G) (ℓ' : L(v')), flow ℓ' ℓ -> Γ v' ℓ' = Γ' v' ℓ'.
 
-Definition distr_interface_class (v : G) (ℓ : L(v)) (Γ : forall (v : G) (ℓ : L(v)), N ℓ) : Ensemble (forall (v : G) (ℓ : L(v)), N ℓ) :=
+Definition distr_interface_class (v : G) (ℓ : L(v)) (Γ : Interface) : Ensemble Interface :=
   fun Γ' => distr_interface_equiv ℓ Γ Γ'.
 
-Definition 𝕂 (v : G) (ℓ : L(v)) (σs : seq (forall ℓ, option (N ℓ))) : Ensemble (forall (v : G) (ℓ : L(v)), N ℓ) :=
+Definition 𝕂 (v : G) (ℓ : L(v)) (σs : Observation v) : Ensemble Interface :=
   fun Γ => exists (Σ : 𝒮), (forall v ℓ, (Σ v).1 ℓ = Γ v ℓ) /\ emits ℓ Σ σs.
 
 Definition respects (Σ : 𝒮) : Prop :=
   forall (v : G) (ℓ : L(v)) σs, emits ℓ Σ σs -> Included _ (distr_interface_class ℓ (fun v ℓ => fst (Σ v) ℓ)) (𝕂 ℓ σs).
 
-Definition local_interface_equiv (v : G) (ℓ : L(v)) (ρ ρ' : forall ℓ : L(v), N ℓ) : Prop :=
+Definition local_interface_equiv (v : G) (ℓ : L(v)) (ρ ρ' : LocalInterface v) : Prop :=
   forall ℓ', (ℓ' <= ℓ) -> ρ ℓ' = ρ' ℓ'.
 
-Definition local_interface_class (v : G) (ℓ : L(v)) (ρ : forall ℓ : L(v), N ℓ) : Ensemble (forall ℓ : L(v), N ℓ) :=
+Definition local_interface_class (v : G) (ℓ : L(v)) (ρ : LocalInterface v) : Ensemble (LocalInterface v) :=
   fun ρ' => local_interface_equiv ℓ ρ ρ'.
 
-Definition K (v : G) (ℓ : L(v)) (σs : seq (forall ℓ, option (N ℓ))) : Ensemble (forall ℓ : L(v), N ℓ) :=
+Definition K (v : G) (ℓ : L(v)) (σs : Observation v) : Ensemble (LocalInterface v) :=
   fun ρ => exists (Σ : 𝒮), (forall (ℓ' : L(v)), (Σ v).1 ℓ' = ρ ℓ') /\ emits ℓ Σ σs.
 
 Definition noninterference (Σ : 𝒮) : Prop :=
   forall (v : G) (ℓ : L(v)) σs, emits ℓ Σ σs -> Included _ (local_interface_class ℓ (fun ℓ => fst (Σ v) ℓ)) (K ℓ σs).
 
-Definition update (Γ : forall (v : G) (ℓ : L(v)), N ℓ) (v : G) (ρ : forall ℓ : L(v), N ℓ) (v' : G) : forall ℓ' : L(v'), N ℓ' :=
+Definition update (Γ : Interface) (v : G) (ρ : LocalInterface v) (v' : G) : LocalInterface v' :=
   match @eqP _ v v' with
   | ReflectF _ => Γ v'
   | ReflectT p => match p with
