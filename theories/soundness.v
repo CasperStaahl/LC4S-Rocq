@@ -102,3 +102,4 @@ Proof.
   by rewrite -Γvℓ'_eq_ρℓ'.
 Qed.
 
+End soundness.
