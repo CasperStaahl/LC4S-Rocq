@@ -183,7 +183,7 @@ Proof.
   apply: yLe => //.
 Qed.
 
-Lemma melton_3_11
+Lemma melton_3_11_1
     d (P : finTBLatticeType d)
     d' (Q : finTBLatticeType d')
     (fg : Lagois.type P Q)
