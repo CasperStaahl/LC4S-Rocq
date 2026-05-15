@@ -28,7 +28,7 @@ HB.instance Definition _
     (fg : Lagois.type P Q)
   := IsLagois.Build d' Q d P (fg.2, fg.1) lc2 lc1 lc4 lc3.
 
-Lemma melton_3_3 d (P : finLatticeType d) d' (Q : finLatticeType d')
+Proposition melton_3_3 d (P : finLatticeType d) d' (Q : finLatticeType d')
     (f : { omorphism P -> Q}) (g : { omorphism Q -> P}) :
   (forall p, f (g (f p)) = f p) <-> (forall q, q \in f @: setT <-> f (g q) = q).
 Proof.
@@ -67,7 +67,7 @@ Proof.
   by apply: le_anti; apply/andP.
 Qed.
 
-Lemma melton_3_7
+Proposition melton_3_7
     d (P : finTBLatticeType d)
     d' (Q : finTBLatticeType d')
     (fg : Lagois.type P Q) q :
@@ -86,7 +86,7 @@ Proof.
     by rewrite -p_in_fnq.
 Qed.
 
-Lemma melton_3_7_full
+Proposition melton_3_7_full
     d (P : finTBLatticeType d)
     d' (Q : finTBLatticeType d')
     (fg : Lagois.type P Q) q :
@@ -109,7 +109,7 @@ Lemma CC
   fg.1 (fg.2 q) = q' -> fg.1 (fg.2 q') = q'.
 Proof. by move=> <-; rewrite lc3. Qed.
 
-Lemma melton_3_8
+Proposition melton_3_8
     d (P : finTBLatticeType d)
     d' (Q : finTBLatticeType d')
     (fg : Lagois.type P Q) q :
@@ -137,7 +137,7 @@ Proof.
   exact/le_anti/andP.
 Qed.
 
-Lemma melton_3_9
+Theorem melton_3_9
     d (P : finTBLatticeType d)
     d' (Q : finTBLatticeType d')
     (fg : Lagois.type P Q) q :
@@ -183,7 +183,7 @@ Proof.
   apply: yLe => //.
 Qed.
 
-Lemma melton_3_11_1
+Proposition melton_3_11_1
     d (P : finTBLatticeType d)
     d' (Q : finTBLatticeType d')
     (fg : Lagois.type P Q)
@@ -223,7 +223,7 @@ Proof.
     exact: le_trans (lc1 dd) gfd_le_b.
 Qed.
 
-Lemma melton_3_11_2
+Proposition melton_3_11_2
     d (P : finTBLatticeType d)
     d' (Q : finTBLatticeType d')
     (fg : Lagois.type P Q)
