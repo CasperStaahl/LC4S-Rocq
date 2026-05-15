@@ -11,9 +11,10 @@ Import Order.LTheory.
 
 Open Scope order_scope.
 
-(* Definition 10 *)
+(* Definition 5 *)
 HB.mixin Record IsLagois d (P : porderType d) d' (Q : porderType d')
     (fg : {omorphism P -> Q} * {omorphism Q -> P}) := {
+(* SC1 & SC2 *)
   lc1 q : q <= fg.2 (fg.1 q) ;
   lc2 p : p <= fg.1 (fg.2 p) ;
   lc3 p : fg.1 (fg.2 (fg.1 p)) = fg.1 p ;
@@ -38,6 +39,7 @@ Proof.
   - move=> p; apply (LC3' (f p)); apply/imsetP; exists p=>//.
 Qed.
 
+(* PC1 & PC2 *)
 Lemma PC
     d (P : finTBLatticeType d)
     d' (Q : finTBLatticeType d')
@@ -99,6 +101,7 @@ Proof.
   rewrite in_set q_eq_fp lc3; exact: set11.
 Qed.
 
+(* CC1 & CC2 *)
 Lemma CC
     d (P : porderType d)
     d' (Q : porderType d')
@@ -152,21 +155,33 @@ Definition meetOfInIs d (L : finTBLatticeType d) (A B : {set L}) x :=
   /\ x \in B.
 Notation "'meet' 'of' A 'in' B 'is' x" := (meetOfInIs A B x) (at level 30).
 
+Lemma meetOfInIs_uniq d (L : finTBLatticeType d) (A B : {set L}) x y :
+  meet of A in B is x ->
+  meet of A in B is y ->
+  x = y.
+Proof.
+  move=> [xLeA [Lex xInB]] [yLeA [Ley yInB]].
+  apply/le_anti/andP; split.
+    apply: Ley => //.
+  apply: Lex => //.
+Qed.
+
 Definition joinOfInIs d (L : finTBLatticeType d) (A B : {set L}) x :=
   (forall a, a \in A -> a <= x)
   /\ (forall b, b \in B -> (forall a, a \in A -> a <= b) -> x <= b)
   /\ x \in B.
 Notation "'join' 'of' A 'in' B 'is' x" := (joinOfInIs A B x) (at level 30).
 
-Check forall d (P : finTBLatticeType d)
-             d' (Q : finTBLatticeType d')
-             (fg : Lagois.type P Q)
-             (A : {set P}),
-  A \subset fg.2 @: setT ->
-  (forall p : {b | meet of A in (fg.2 @: setT) is b},
-      exists b, meet of A in setT is b /\ b = proj1_sig p)
-  /\ (forall p : {b | meet of A in setT is b},
-      exists b, meet of A in (fg.2 @: setT) is b /\ b = proj1_sig p).
+Lemma joinOfInIs_uniq d (L : finTBLatticeType d) (A B : {set L}) x y :
+  join of A in B is x ->
+  join of A in B is y ->
+  x = y.
+Proof.
+  move=> [ALex [xLe xInB]] [ALey [yLe yInB]].
+  apply/le_anti/andP; split.
+    apply: xLe => //.
+  apply: yLe => //.
+Qed.
 
 Lemma melton_3_11
     d (P : finTBLatticeType d)
@@ -206,21 +221,6 @@ Proof.
       rewrite -(gfa_eq_a a a_in_A).
       by move: gfd_le_gfa => /(_ a a_in_A) /andP [_ gfd_eq_gfa].
     exact: le_trans (lc1 dd) gfd_le_b.
-Qed.
-
-Lemma melton_3_11_1'
-    d (P : finTBLatticeType d)
-    d' (Q : finTBLatticeType d')
-    (fg : Lagois.type P Q)
-    (A : {set P}) :
-  A \subset fg.2 @: setT ->
-  (forall p : {b | meet of A in (fg.2 @: setT) is b},
-      exists b, meet of A in setT is b /\ b = proj1_sig p)
-  /\ (forall p : {b | meet of A in setT is b},
-      exists b, meet of A in (fg.2 @: setT) is b /\ b = proj1_sig p).
-Proof.
-  move=> A_subset_gQ; split=> p; exists (proj1_sig p); split=> //;
-  apply/(melton_3_11 A_subset_gQ); exact (proj2_sig p).
 Qed.
 
 Lemma melton_3_11_2

@@ -57,6 +57,7 @@ Definition distr_interface_class (v : G) (ℓ : L(v)) (Γ : Interface) : Ensembl
 Definition 𝕂 (v : G) (ℓ : L(v)) (σs : Observation v) : Ensemble Interface :=
   fun Γ => exists (Σ : 𝒮), (forall v ℓ, (Σ v).1 ℓ = Γ v ℓ) /\ emits ℓ Σ σs.
 
+(* Definition 29*)
 Definition respects (Σ : 𝒮) : Prop :=
   forall (v : G) (ℓ : L(v)) σs, emits ℓ Σ σs -> Included _ (distr_interface_class ℓ (fun v ℓ => fst (Σ v) ℓ)) (𝕂 ℓ σs).
 
@@ -69,6 +70,7 @@ Definition local_interface_class (v : G) (ℓ : L(v)) (ρ : LocalInterface v) : 
 Definition K (v : G) (ℓ : L(v)) (σs : Observation v) : Ensemble (LocalInterface v) :=
   fun ρ => exists (Σ : 𝒮), (forall (ℓ' : L(v)), (Σ v).1 ℓ' = ρ ℓ') /\ emits ℓ Σ σs.
 
+(* Definition 30 *)
 Definition noninterference (Σ : 𝒮) : Prop :=
   forall (v : G) (ℓ : L(v)) σs, emits ℓ Σ σs -> Included _ (local_interface_class ℓ (fun ℓ => fst (Σ v) ℓ)) (K ℓ σs).
 
@@ -80,7 +82,8 @@ Definition update (Γ : Interface) (v : G) (ρ : LocalInterface v) (v' : G) : Lo
                   end
   end.
 
-Proposition respects2noninterference Σ :
+(* Theorem 31 *)
+Theorem respects2noninterference Σ :
   respects Σ -> flow_secure_graph G -> noninterference Σ.
 Proof.
   move=> respΣ secG v ℓ σs emitsℓΣσs ρ  ρ_in_equiv.

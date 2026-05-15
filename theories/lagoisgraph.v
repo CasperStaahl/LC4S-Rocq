@@ -16,7 +16,7 @@ From Coq Require Import Logic.EqdepFacts.
 Require Import Coq.Arith.Wf_nat.
 Require Import Logic.Eqdep_dec.
 
-(* Definition 11 *)
+(* Definition 9 & 13 *)
 HB.mixin Record IsLagoisGraph V of Equality V := {
   lattice : V -> {d & porderType d} ;
   edge v v' : bool ;
@@ -33,7 +33,7 @@ Notation "v @> v'" := (edge v v' = true) (at level 70).
 Definition edge2label (G : LagoisGraph.type) (v v' : G) (f : v @> v') := label v v' f.
 Coercion edge2label : eq >-> Lagois.type.
 
-(* Definition 12 *)
+(* Definition 14 *)
 Inductive flow (G : LagoisGraph.type) :
     forall v v' : G, L(v) -> L(v') -> Prop :=
   | flow_le v (p p' : L(v)) :
@@ -43,6 +43,7 @@ Inductive flow (G : LagoisGraph.type) :
   | flow_trans v v' v'' (p : L(v)) (q : L(v')) (r : L(v'')) :
       flow p q -> flow q r -> flow p r.
 
+(* Definition 10 *)
 Reserved Notation "v ~> v'" (at level 80).
 Reserved Notation "v ~> v' :> G".
 Inductive path (G : LagoisGraph.type) : G -> G -> Type :=
@@ -128,19 +129,19 @@ Qed.
 Definition prev_invar (P : forall {v1 v2 : G}, (v1~>v2) -> Prop) :=
   forall v1 v2 (f : v1 ~> v2), P f <-> P f^<~.
 
-(* Definition 13.1 *)
+(* Definition 15.1 *)
 Definition flow_secure (v : G) := forall (p p' : L(v)), flow p p' -> p <= p'.
 
-(* Definition 13.2 *)
+(* Definition 15.2 *)
 Definition flow_secure_graph := forall v : G, flow_secure v.
 
-(* Definition 14.1 *)
+(* Definition 16.1 *)
 Definition loop_secure v (f : v ~> v :> G) := forall (p : L(v)), p <= f p.
 
-(* Definition 14.2 *)
+(* Definition 16.2 *)
 Definition loop_secure_vertex v := forall (f : v ~> v :> G), loop_secure f.
 
-(* Definition 14.3 *)
+(* Definition 16.3 *)
 Definition loop_secure_graph := forall v : G, loop_secure_vertex v.
 
 Lemma pathcomp2funcomp (v v' v'' : G) (f : v ~> v') (g : v' ~> v'') :
@@ -149,7 +150,7 @@ Proof.
   move=> p; elim: v v' / f g p => [ // | v v' v0 h f g g0 h0 //=].
 Qed.
 
-(* Lemma 2 *)
+(* Lemma 20 *)
 Lemma path_nondecreasing v v' (f : v ~> v' :> G) :
   nondecreasing f.
 Proof.
@@ -157,7 +158,7 @@ Proof.
   exact/ndg/(omorph_le e.1).
 Qed.
 
-(* Lemma 1 *)
+(* Lemma 17 *)
 Lemma flow2path (v v' : G) (p : L(v)) (q : L(v')) :
   flow p q -> exists (f : v ~> v' :> G), f p <= q.
 Proof.
@@ -181,7 +182,7 @@ Proof.
   by move/(_ (f p)) in IH.
 Qed.
 
-(* Proposition 2.1 *)
+(* Proposition 18.1 *)
 Proposition vertex_flow_secure_iff_loop_secure (v : G) :
   flow_secure v <-> loop_secure_vertex v .
 Proof.
@@ -193,7 +194,7 @@ Proof.
       exact: Hh.
 Qed.
 
-(* Proposition 2.2 *)
+(* Proposition 18.2 *)
 Lemma flow_secure_graph_is_loop_secure :
   flow_secure_graph <-> loop_secure_graph.
 Proof.
@@ -215,7 +216,7 @@ Lemma reversepathcons2funcomp
   (path_cons f g)^<~ =1 f^<~ \o g^<~.
 Proof. by move=> p; rewrite pathcomp2funcomp. Qed.
 
-(* Lemma 3 *)
+(* Lemma 22 *)
 Lemma reverse_path_loop_secure v v' (f : v ~> v') : loop_secure (f \* f^<~).
 Proof.
   elim: f => [ _// | {}v {}v' v'' f g IHg p].
@@ -451,7 +452,6 @@ Fixpoint loop_ind_aux
       end
   end.
 
-(* Theorem 2 *)
 Definition loop_ind
     (P : forall v : G, v ~> v :> G -> Prop)
     (bc_1 : forall v : G, P v (ε))
@@ -462,11 +462,11 @@ Definition loop_ind
     v (f : v ~> v) : P v f :=
   loop_ind_aux bc_1 bc_2 ic (subloopwf (existT _ v f)).
 
-(* Definition 15 *)
+(* Definition 19 *)
 Definition simply_secure := forall (v v' : G) (f : v ~> v') (g : v' ~> v),
   uniq f -> uniq g -> forall p, p <= (f \* g)(p).
 
-(* Proposition 3 *)
+(* Proposition 21 *)
 Proposition simply_secure_iff_loop_secure :
   simply_secure <-> loop_secure_graph.
 Proof.
@@ -484,7 +484,7 @@ Qed.
 
 End LagoisGraphTheory.
 
-(* Definition 16 *)
+(* Definition 24 *)
 HB.mixin Record IsLagoisVForest G of LagoisGraph G := {
   vacyclic v v' (f g : v ~> v' :> G) : uniq f -> uniq g -> f =1 g ;
 }.
@@ -494,7 +494,7 @@ HB.structure Definition LagoisVForest :=
 Section LagoisVForestTheory.
 Variable (G : LagoisVForest.type).
 
-(* Theorem 3 *)
+(* Theorem 25 *)
 Theorem VForest_loop_secure : loop_secure_graph G.
 Proof.
   move=> v f.
@@ -513,6 +513,7 @@ Qed.
 
 End LagoisVForestTheory.
 
+(* Definition 23 *)
 HB.mixin Record IsLagoisForest G of LagoisGraph G := {
   acyclic v v' (f g : v ~> v' :> G) : uniq f -> uniq g -> f = g ;
 }.
@@ -522,7 +523,6 @@ HB.structure Definition LagoisForest :=
 Section LagoisForestTheory.
 Variable (G : LagoisForest.type).
 
-(* Corollary 1 *)
 Lemma LagoisForest_vacyclic v v' (f g : v ~> v' :> G) :
   uniq f -> uniq g -> f =1 g.
 (* Observe that this lemma can be proven without vacyclic *)
@@ -531,11 +531,13 @@ Proof. by move=> un_f un_g p; rewrite (acyclic _ _ _ _ un_f un_g). Qed.
 Lemma uniqloopε v (f : v ~> v :> G) : uniq f -> f = ε.
 Proof. move=> uf; rewrite (acyclic _ _ f ε) => //. Qed.
 
-Theorem Forest_loop_secure : loop_secure_graph G.
+(* Corollary 26 *)
+Corollary Forest_loop_secure : loop_secure_graph G.
 Proof. exact: VForest_loop_secure. Qed.
 
 End LagoisForestTheory.
 
+(* Definition 27 Start *)
 Inductive Bridge (G G' : LagoisGraph.type) (v_abut : G) (v'_abut : G') (fg : Lagois.type L(v_abut) L(v'_abut)) : Type :=
   | lbank : G -> Bridge fg
   | rbank : G' -> Bridge fg.
@@ -653,6 +655,7 @@ Qed.
 HB.instance Definition _ := hasDecEq.Build (Bridge fg) Bridge_eq_axiom.
 
 HB.instance Definition _ := IsLagoisGraph.Build (Bridge fg) Bridge_edge_irefl Bridge_edge_sym Bridge_label_sym.
+(* Definition 27 End *)
 
 (* Definition inl (v : Bridge fg) := {v0 | lbank v0 = v}. *)
 (**)
@@ -820,7 +823,7 @@ Proof.
   by rewrite un_gh in cont.
 Qed.
 
-Theorem un_inl_inl (v1 v2 : G) (f : lbank v1 ~> lbank v2)
+Lemma un_inl_inl (v1 v2 : G) (f : lbank v1 ~> lbank v2)
   : uniq f -> exists (g : v1 ~> v2), f =1 g.
 Proof.
   move=> un_f; move: (unf_inl_inl_aux un_f) => /= [g ->].
@@ -828,7 +831,7 @@ Proof.
   exact: pl2p_id.
 Qed.
 
-Theorem un_inr_inr (v1 v2 : G') (f : rbank v1 ~> rbank v2)
+Lemma un_inr_inr (v1 v2 : G') (f : rbank v1 ~> rbank v2)
   : uniq f -> exists (g : v1 ~> v2), f =1 g.
 Proof.
   move=> un_f; move: (unf_inr_inr_aux un_f) => /= [g ->].
@@ -836,7 +839,7 @@ Proof.
   exact: pr2p_id.
 Qed.
 
-Theorem l2r_bpath_decomp (v1 : G) (v2 : G') (f : lbank v1 ~> rbank v2) :
+Lemma l2r_bpath_decomp (v1 : G) (v2 : G') (f : lbank v1 ~> rbank v2) :
   uniq f -> exists (g : v1 ~> v_abut) (h : v'_abut ~> v2), f =1 h \o o-o \o g.
 Proof.
   move: (bwbridge_nun'_inv f) => [f1 [f2 f1f2_eq]] f_un.
@@ -846,7 +849,7 @@ Proof.
   by rewrite -f1f2_eq pathcomp2funcomp /= f1'_eq f2'_eq.
 Qed.
 
-Theorem r2l_bpath_decomp (v1 : G') (v2 : G) (f : rbank v1 ~> lbank v2) :
+Lemma r2l_bpath_decomp (v1 : G') (v2 : G) (f : rbank v1 ~> lbank v2) :
   uniq f -> exists (g : v1 ~> v'_abut) (h : v_abut ~> v2), f =1 h \o o-o^<~ \o g.
 Proof.
   move: (bwbridge_nun' f) => [f1 [f2 f1f2_eq]] f_un.
@@ -856,6 +859,7 @@ Proof.
   by rewrite -f1f2_eq pathcomp2funcomp /= f1'_eq f2'_eq.
 Qed.
 
+(* Theorem 28 *)
 Theorem Bridge_secure : loop_secure_graph G -> loop_secure_graph G' -> loop_secure_graph (Bridge fg).
 Proof.
   move=> Gs G's; apply /simply_secure_iff_loop_secure.
